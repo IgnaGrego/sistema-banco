@@ -2,6 +2,7 @@
 description: Translates an approved specification into a pragmatic technical design and ADRs. Never implements code. Writes docs/architecture and docs/adr only.
 mode: subagent
 model: opencode-go/deepseek-v4-flash
+steps: 30
 permission:
   edit:
     "*": deny
