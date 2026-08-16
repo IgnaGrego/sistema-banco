@@ -22,8 +22,12 @@ import java.nio.charset.StandardCharsets;
  * RBAC. Orden de matchers IMPORTANTE: el listado EXACTO (GET /api/v1/clientes)
  * va antes que el comodín /{id} (SPEC-001 §8.5). SPEC-003 agrega al INICIO los
  * dos matchers públicos de /api/v1/auth (FR-001, FR-002; docs/architecture/SPEC-003.md
- * §8.5); el resto del chain (CSRF off, stateless, entry point 401, handler 403,
- * filtro JWT) no cambia.
+ * §8.5). SPEC-002 agrega los matchers de cuentas entre los de clientes y el
+ * anyRequest (docs/architecture/SPEC-002.md §8.4): el listado EXACTO
+ * (GET /api/v1/cuentas) y la sub-ruta /cbu/** van ANTES del comodín /{id}; la
+ * propiedad de CLIENTE se verifica SIEMPRE en el use case (BR-006,
+ * ARCHITECTURE.md §8), nunca en el matcher. El resto del chain (CSRF off,
+ * stateless, entry point 401, handler 403, filtro JWT) no cambia.
  * Sin CORS (no hay frontend en este sprint).
  */
 @Configuration
@@ -50,6 +54,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/clientes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/clientes").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/clientes/**").hasAnyRole("ADMIN", "CLIENTE")
+                        // SPEC-002 §8.4 (orden crítico): apertura solo ADMIN; el
+                        // listado EXACTO y /cbu/** van antes que el comodín /{id}.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cuentas").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cuentas").hasAnyRole("ADMIN", "CLIENTE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cuentas/cbu/**").hasAnyRole("ADMIN", "CLIENTE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cuentas/**").hasAnyRole("ADMIN", "CLIENTE")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
