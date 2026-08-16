@@ -50,6 +50,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/clientes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/clientes").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/clientes/**").hasAnyRole("ADMIN", "CLIENTE")
+                        // SPEC-004: solo CLIENTE transfiere (A-005); el ADMIN
+                        // consulta el historial de cualquier cuenta y el CLIENTE
+                        // el de las propias (la propiedad se verifica en el use case).
+                        .requestMatchers(HttpMethod.POST, "/api/v1/transferencias").hasRole("CLIENTE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cuentas/*/movimientos").hasAnyRole("ADMIN", "CLIENTE")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->

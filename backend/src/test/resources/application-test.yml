@@ -14,3 +14,6 @@ banco:
     # no es una credencial real.
     jwt-secret: test-only-secret-clave-hs256-de-32-bytes-minimo
     jwt-expiration-minutes: 60
+  negocio:
+    # Mismo default que application.yml (BR-004, A-002).
+    limite-diario-transferencias: 200000

@@ -1,17 +1,25 @@
 package com.banco.infrastructure.adapter.web;
 
 import com.banco.domain.exception.AccesoDenegadoException;
+import com.banco.domain.exception.AutoTransferenciaException;
+import com.banco.domain.exception.CbuInvalidoException;
 import com.banco.domain.exception.ClienteDuplicadoException;
 import com.banco.domain.exception.ClienteNoEncontradoException;
 import com.banco.domain.exception.CredencialesInvalidasException;
+import com.banco.domain.exception.CuentaBloqueadaException;
+import com.banco.domain.exception.CuentaNoEncontradaException;
 import com.banco.domain.exception.DatosInvalidosException;
 import com.banco.domain.exception.DniInvalidoException;
+import com.banco.domain.exception.LimiteDiarioExcedidoException;
+import com.banco.domain.exception.MonedaIncompatibleException;
+import com.banco.domain.exception.SaldoInsuficienteException;
 import com.banco.domain.exception.UsernameDuplicadoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -52,6 +60,15 @@ public class GlobalExceptionHandler {
                 List.of(new DetalleError("dni", e.getMessage())));
     }
 
+    @ExceptionHandler(CbuInvalidoException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleCbuInvalido(CbuInvalidoException e) {
+        // Defensiva del VO CBU (formato de 22 dígitos): misma semántica que
+        // DniInvalidoException, con el campo del request (SPEC-004 §8.6).
+        return new ErrorResponse("DATOS_INVALIDOS", e.getMessage(),
+                List.of(new DetalleError("cbuDestino", e.getMessage())));
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
@@ -74,6 +91,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleClienteNoEncontrado(ClienteNoEncontradoException e) {
         return new ErrorResponse("CLIENTE_NO_ENCONTRADO", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(CuentaNoEncontradaException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleCuentaNoEncontrada(CuentaNoEncontradaException e) {
+        // ERR-002 → 404 CUENTA_NO_ENCONTRADA (origen/destino inexistente).
+        return new ErrorResponse("CUENTA_NO_ENCONTRADA", e.getMessage(), null);
     }
 
     @ExceptionHandler(ClienteDuplicadoException.class)
@@ -99,6 +123,46 @@ public class GlobalExceptionHandler {
         // identificar el campo; se reporta genérico (§5.4 del diseño).
         log.warn("Conflicto de unicidad capturado por constraint de BD", e);
         return new ErrorResponse("CONFLICTO_UNICIDAD", "Conflicto de unicidad de datos", null);
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException e) {
+        // ERR-005 → 409 CONFLICTO_CONCURRENCIA (BR-006, A-004). Hibernate lanza
+        // StaleObjectStateException, que Spring envuelve como
+        // ObjectOptimisticLockingFailureException. Sin reintento automático.
+        log.warn("Conflicto de concurrencia (optimistic lock) en transferencia", e);
+        return new ErrorResponse("CONFLICTO_CONCURRENCIA", "Conflicto de concurrencia: reintente la operación", null);
+    }
+
+    @ExceptionHandler(SaldoInsuficienteException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleSaldoInsuficiente(SaldoInsuficienteException e) {
+        return new ErrorResponse("SALDO_INSUFICIENTE", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(CuentaBloqueadaException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleCuentaBloqueada(CuentaBloqueadaException e) {
+        return new ErrorResponse("CUENTA_BLOQUEADA", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(LimiteDiarioExcedidoException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleLimiteDiarioExcedido(LimiteDiarioExcedidoException e) {
+        return new ErrorResponse("LIMITE_DIARIO_EXCEDIDO", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(AutoTransferenciaException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleAutoTransferencia(AutoTransferenciaException e) {
+        return new ErrorResponse("AUTO_TRANSFERENCIA", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(MonedaIncompatibleException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleMonedaIncompatible(MonedaIncompatibleException e) {
+        return new ErrorResponse("MONEDA_INCOMPATIBLE", e.getMessage(), null);
     }
 
     @ExceptionHandler(Exception.class)
