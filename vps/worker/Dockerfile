@@ -12,7 +12,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get update && apt-get install -y --no-install-recommends gh && \
     rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g opencode-ai@latest
+# Versión pineada para builds reproducibles. Actualizar deliberadamente y
+# probar antes de subir (npm view opencode-ai version).
+RUN npm install -g opencode-ai@1.18.18
 
 WORKDIR /app
 

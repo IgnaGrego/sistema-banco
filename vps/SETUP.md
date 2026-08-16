@@ -86,8 +86,13 @@ gh api -X POST repos/IgnaGrego/sistema-banco/hooks \
 
 ## 6. Probar
 
-Abrir un issue en el repo con el texto de un requisito, o comentar `/sdd` en uno.
-El worker lo toma, corre `opencode run --agent orchestrator` y comenta el resultado.
+> Por defecto el pipeline se dispara **solo** con el comentario `/sdd`
+> (`TRIGGER_ON_OPEN=false`). Si preferís que arranque al abrir cualquier
+> issue, poné `TRIGGER_ON_OPEN=true` en `.env`.
+
+Crear un issue con un requisito y comentar `/sdd` en él (o abrirlo si
+`TRIGGER_ON_OPEN=true`). El worker lo toma, corre
+`opencode run --agent orchestrator` y comenta el resultado.
 
 ## Seguridad
 

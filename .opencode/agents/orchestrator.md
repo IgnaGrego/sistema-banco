@@ -62,8 +62,11 @@ needs (spec number, references, context) and instruct it to return its output.
 - Work only on that branch; commit with clear, conventional messages.
 - Push and open a pull request to the base branch.
 - Merge **only when** `reviewer` returned PASS **and** `code-reviewer`
-  returned APPROVE. Perform the merge yourself (e.g. `gh pr merge <n>
-  --squash`); the code-reviewer only decides, it does not merge.
+  returned APPROVE **and** both reports exist in `docs/reviews/`
+  (`SPEC-XXX-review.md` y `SPEC-XXX-code-review.md`). Verify the reports are
+  committed on the feature branch before merging. Perform the merge yourself
+  (e.g. `gh pr merge <n> --squash`); the code-reviewer only decides, it does
+  not merge.
 - Never force-push, reset, or clean the repository.
 
 ## Tracking and reporting

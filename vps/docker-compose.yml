@@ -6,6 +6,7 @@ services:
       PORT: "8080"
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:?set WEBHOOK_SECRET in .env}
       TRIGGER_COMMAND: ${TRIGGER_COMMAND:-/sdd}
+      TRIGGER_ON_OPEN: ${TRIGGER_ON_OPEN:-false}
       QUEUE_DIR: /queue
     volumes:
       - queue:/queue
