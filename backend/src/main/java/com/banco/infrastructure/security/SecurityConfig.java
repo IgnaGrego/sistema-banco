@@ -30,8 +30,11 @@ import java.nio.charset.StandardCharsets;
  * transferencias (POST → solo CLIENTE, A-005) e historial (GET
  * /api/v1/cuentas/{id}/movimientos → ADMIN|CLIENTE; la propiedad de CLIENTE se
  * verifica en ObtenerMovimientosUseCase — docs/architecture/SPEC-004.md §8.5).
- * El resto del chain (CSRF off, stateless, entry point 401, handler 403, filtro
- * JWT) no cambia. Sin CORS (no hay frontend en este sprint).
+ * SPEC-005 agrega los matchers de depósitos (POST → solo ADMIN, A-001) y
+ * retiros (POST → ADMIN|CLIENTE; la propiedad de CLIENTE se verifica en
+ * DepositoRetiroValidator — docs/architecture/SPEC-005.md §8.5). El resto del
+ * chain (CSRF off, stateless, entry point 401, handler 403, filtro JWT) no
+ * cambia. Sin CORS (no hay frontend en este sprint).
  */
 @Configuration
 @EnableWebSecurity
@@ -68,6 +71,12 @@ public class SecurityConfig {
                         // (la propiedad de CLIENTE se verifica en el use case).
                         .requestMatchers(HttpMethod.POST, "/api/v1/transferencias").hasRole("CLIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/cuentas/*/movimientos").hasAnyRole("ADMIN", "CLIENTE")
+                        // SPEC-005 §8.5: depósitos solo ADMIN (el CLIENTE nunca
+                        // deposita — A-001, se re-verifica en DepositoRetiroValidator);
+                        // retiros ADMIN (cualquier cuenta) o CLIENTE (solo propias,
+                        // la propiedad se verifica en el use case/validador).
+                        .requestMatchers(HttpMethod.POST, "/api/v1/depositos").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/retiros").hasAnyRole("ADMIN", "CLIENTE")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
