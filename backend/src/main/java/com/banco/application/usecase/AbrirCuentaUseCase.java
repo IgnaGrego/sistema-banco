@@ -41,9 +41,9 @@ public class AbrirCuentaUseCase {
     }
 
     public Cuenta ejecutar(AbrirCuentaCommand command) {
-        // 1. Validación de forma → 400 (ERR-001, AC-004): tipo inválido,
-        //    moneda con formato inválido (ERR-001, A-005).
-        validator.validar(command.tipo(), command.moneda());
+        // 1. Validación de forma → 400 (ERR-001, AC-004): clienteId obligatorio
+        //    (FR-001), tipo inválido, moneda con formato inválido (ERR-001, A-005).
+        validator.validar(command.clienteId(), command.tipo(), command.moneda());
 
         // 2. Tipo garantizado válido por el paso 1.
         TipoCuenta tipo = TipoCuenta.valueOf(command.tipo());

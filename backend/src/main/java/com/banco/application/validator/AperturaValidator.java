@@ -10,15 +10,23 @@ import com.banco.domain.model.TipoCuenta;
  * decisión que {@code RegistroValidator}). Lanza
  * {@link DatosInvalidosException(campo, mensaje)} como la CoR de clientes.
  *
- * <p>Chequeos: {@code tipo} obligatorio y parseable a {@link TipoCuenta};
- * {@code moneda} (si viene) debe cumplir {@code ^[A-Z]{3}$}. El formato se
- * valida SIN trim (" ars " es formato inválido → 400).
+ * <p>Chequeos: {@code clienteId} obligatorio (FR-001 — sin él no hay titular);
+ * {@code tipo} obligatorio y parseable a {@link TipoCuenta}; {@code moneda}
+ * (si viene) debe cumplir {@code ^[A-Z]{3}$}. El formato se valida SIN trim
+ * (" ars " es formato inválido → 400). Corta ante el primer error.
  */
 public class AperturaValidator {
 
-    public void validar(String tipo, String moneda) {
+    public void validar(Long clienteId, String tipo, String moneda) {
+        validarClienteId(clienteId);
         validarTipo(tipo);
         validarMoneda(moneda);
+    }
+
+    private void validarClienteId(Long clienteId) {
+        if (clienteId == null) {
+            throw new DatosInvalidosException("clienteId", "El cliente titular es obligatorio");
+        }
     }
 
     private void validarTipo(String tipo) {

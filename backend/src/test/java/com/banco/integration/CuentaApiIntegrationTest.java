@@ -204,6 +204,21 @@ class CuentaApiIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.code").value("ACCESO_DENEGADO"));
     }
 
+    @Test
+    void ERR001_aperturaSinClienteIdResponde400ConCampoClienteId() throws Exception {
+        // ERR-001: clienteId es el campo obligatorio de FR-001; sin él la
+        // apertura responde 400 DATOS_INVALIDOS (antes caía en el fallback 500).
+        mockMvc.perform(post("/api/v1/cuentas")
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tipo":"CAJA_AHORRO"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DATOS_INVALIDOS"))
+                .andExpect(jsonPath("$.details[0].campo").value("clienteId"));
+    }
+
     // --- Consulta por id (GET /api/v1/cuentas/{id}) ---
 
     @Test

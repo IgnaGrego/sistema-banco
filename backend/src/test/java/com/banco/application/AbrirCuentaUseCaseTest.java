@@ -91,7 +91,7 @@ class AbrirCuentaUseCaseTest {
         assertEquals(22, guardada.getCbu().valor().length()); // FR-002
         assertNull(resultado.getId());
         verify(clienteRepository).findById(7L);
-        verify(validator).validar("CAJA_AHORRO", null);
+        verify(validator).validar(7L, "CAJA_AHORRO", null);
     }
 
     @Test
@@ -157,7 +157,7 @@ class AbrirCuentaUseCaseTest {
     @Test
     void validadorSeInvocaAntesDeLosChequeosDeRepositorio() {
         doThrow(new DatosInvalidosException("tipo", "invalido"))
-                .when(validator).validar(anyString(), anyString());
+                .when(validator).validar(any(), anyString(), anyString());
 
         assertThrows(DatosInvalidosException.class,
                 () -> useCase.ejecutar(command("AHORRO", "ARS")));
