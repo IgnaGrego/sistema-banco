@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5433/banco
+    username: banco
+    password: banco
+  jpa:
+    hibernate:
+      ddl-auto: validate        # el esquema lo define Flyway
+    open-in-view: false
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+
+banco:
+  security:
+    # Clave HS256 (>= 32 bytes). Default SOLO para desarrollo local; en
+    # CI/tests se usa application-test.yml. Nunca usar en producción.
+    jwt-secret: ${JWT_SECRET:dev-only-secret-clave-hs256-de-32-bytes-minimo}
+    jwt-expiration-minutes: 60
