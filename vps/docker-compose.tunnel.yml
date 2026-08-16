@@ -1,0 +1,18 @@
+# Túnel Cloudflare con nombre (DNS-remotamente administrado).
+# Da URLs estables HTTPS para la app y el webhook sin abrir puertos del host
+# (el gym ocupa 80/443).
+#
+# Uso:
+#   1. En el dashboard de Cloudflare: Zero Trust -> Networks -> Tunnels ->
+#      "Create a tunnel" -> type Cloudflared -> copiar el TOKEN.
+#   2. Agregar public hostnames al túnel:
+#        banco.ignagrego.online -> http://host.docker.internal:8082
+#        sdd.ignagrego.online    -> http://host.docker.internal:8080
+#   3. Correr: docker compose -f docker-compose.tunnel.yml up -d
+services:
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
