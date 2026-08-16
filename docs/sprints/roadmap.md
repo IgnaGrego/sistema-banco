@@ -26,7 +26,7 @@
 
 ## Sprint 4 — Frontend React
 
-- **Alcance:** E6.
+- **Alcance:** SPEC-006 (E6).
 - **Objetivo:** SPA con login, listado de cuentas, transferencia y gestión
   admin.
 - **Criterio de Done:** flujo completo de UI contra la API con JWT.
