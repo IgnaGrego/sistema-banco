@@ -1,0 +1,14 @@
+# Reverse proxy de ejemplo para el VPS (Caddy + Let's Encrypt automático).
+# GitHub exige HTTPS para entregar webhooks.
+#
+# Uso:
+#   1. Apunta el DNS del dominio a tu VPS.
+#   2. Instalá Caddy (https://caddyserver.com/docs/install).
+#   3. Copiá este archivo a /etc/caddy/Caddyfile y reiniciá Caddy.
+#   4. Reemplazá "sdd.example.com" por tu dominio real.
+#
+# El webhook del SDD escucha en el puerto 8080 dentro del contenedor.
+
+sdd.example.com {
+    reverse_proxy 127.0.0.1:8080
+}
