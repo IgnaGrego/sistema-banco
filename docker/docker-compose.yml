@@ -1,7 +1,7 @@
-# Infraestructura de desarrollo local.
-# - PostgreSQL en el puerto 5433 (para no chocar con el gimnasio del VPS).
-# - Los servicios `api` y `front` se habilitan cuando existan sus Dockerfiles
-#   (los generan los agentes en los Sprints 1 y 4).
+# Infraestructura del sistema bancario (Postgres + API + Frontend).
+# - PostgreSQL en el puerto 5433.
+# - API en 8081, Frontend en 8082 (el gym usa 80/443).
+# - El frontend sirve /api/v1 de forma same-origin (proxy nginx al backend).
 
 services:
   postgres:
@@ -21,24 +21,28 @@ services:
       timeout: 5s
       retries: 10
 
-  # api:
-  #   build: ../backend
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   environment:
-  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banco
-  #     SPRING_DATASOURCE_USERNAME: banco
-  #     SPRING_DATASOURCE_PASSWORD: banco
-  #   ports:
-  #     - "8081:8080"
+  api:
+    build: ../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banco
+      SPRING_DATASOURCE_USERNAME: banco
+      SPRING_DATASOURCE_PASSWORD: banco
+      # Importante en deploy: setear un JWT_SECRET fuerte en el entorno.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-clave-hs256-de-32-bytes-minimo}
+    ports:
+      - "8081:8080"
 
-  # front:
-  #   build: ../frontend
-  #   ports:
-  #     - "5173:5173"
-  #   depends_on:
-  #     - api
+  front:
+    build: ../frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8082:80"
 
 volumes:
   banco_pgdata:
