@@ -3,8 +3,10 @@ package com.banco.infrastructure.adapter.web;
 import com.banco.domain.exception.AccesoDenegadoException;
 import com.banco.domain.exception.ClienteDuplicadoException;
 import com.banco.domain.exception.ClienteNoEncontradoException;
+import com.banco.domain.exception.CredencialesInvalidasException;
 import com.banco.domain.exception.DatosInvalidosException;
 import com.banco.domain.exception.DniInvalidoException;
+import com.banco.domain.exception.UsernameDuplicadoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -19,13 +21,22 @@ import java.util.List;
 
 /**
  * Traduce excepciones al envelope estándar según la tabla de mapeo de
- * docs/architecture/SPEC-001.md §8.6. Los 401/403 de Spring Security los
- * escriben el entry point y el access-denied handler de SecurityConfig.
+ * docs/architecture/SPEC-001.md §8.6 y SPEC-003.md §8.6. Los 401/403 de Spring
+ * Security los escriben el entry point y el access-denied handler de
+ * SecurityConfig.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ErrorResponse handleCredencialesInvalidas(CredencialesInvalidasException e) {
+        // ERR-001 → 401 NO_AUTENTICADO, sin details. El mensaje es idéntico para
+        // username inexistente y password incorrecta (A-004).
+        return new ErrorResponse("NO_AUTENTICADO", e.getMessage(), null);
+    }
 
     @ExceptionHandler(DatosInvalidosException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -68,6 +79,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ClienteDuplicadoException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleClienteDuplicado(ClienteDuplicadoException e) {
+        return new ErrorResponse("CONFLICTO_UNICIDAD", e.getMessage(),
+                List.of(new DetalleError(e.getCampo(), e.getMessage())));
+    }
+
+    @ExceptionHandler(UsernameDuplicadoException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleUsernameDuplicado(UsernameDuplicadoException e) {
+        // ERR-005 → 409 CONFLICTO_UNICIDAD con details[{campo:"username"}]
+        // (misma semántica que SPEC-001 ERR-001).
         return new ErrorResponse("CONFLICTO_UNICIDAD", e.getMessage(),
                 List.of(new DetalleError(e.getCampo(), e.getMessage())));
     }

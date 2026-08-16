@@ -19,10 +19,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
- * RBAC de /api/v1/clientes. Orden de matchers IMPORTANTE (SPEC-001 §8.5): el
- * listado EXACTO (GET /api/v1/clientes) va antes que el comodín /{id}.
- * Sin CORS (no hay frontend en Sprint 1), sin PasswordEncoder (llega con
- * SPEC-003).
+ * RBAC. Orden de matchers IMPORTANTE: el listado EXACTO (GET /api/v1/clientes)
+ * va antes que el comodín /{id} (SPEC-001 §8.5). SPEC-003 agrega al INICIO los
+ * dos matchers públicos de /api/v1/auth (FR-001, FR-002; docs/architecture/SPEC-003.md
+ * §8.5); el resto del chain (CSRF off, stateless, entry point 401, handler 403,
+ * filtro JWT) no cambia.
+ * Sin CORS (no hay frontend en este sprint).
  */
 @Configuration
 @EnableWebSecurity
@@ -42,6 +44,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/clientes").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/clientes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/clientes").hasRole("ADMIN")
