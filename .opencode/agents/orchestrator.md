@@ -55,6 +55,14 @@ needs (spec number, references, context) and instruct it to return its output.
 - If `architect` or `developer` discover a gap in the specification, route it
   back to the `analyst` before continuing.
 
+## Cost guardrails
+
+- Cap the feedback loops: at most **2 re-run rounds** per role (reviewer,
+  code-reviewer). If a round still fails after 2 fixes, stop and report the
+  blocker instead of looping (loops burn tokens without progress).
+- Prefer the smallest correct change; large rewrites consume disproportionate
+  tokens.
+
 ## Git workflow
 
 - Create the feature branch from the base branch named in `AGENTS.md`

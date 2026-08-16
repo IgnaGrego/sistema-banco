@@ -2,6 +2,7 @@
 description: Transforms a business requirement into a clear, testable specification. Never implements code. Writes docs/specs only.
 mode: subagent
 model: opencode-go/deepseek-v4-flash
+steps: 30
 permission:
   edit:
     "*": deny

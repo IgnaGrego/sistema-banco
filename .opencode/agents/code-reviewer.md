@@ -1,7 +1,8 @@
 ---
 description: Reviews code quality (readability, maintainability, security, performance, test coverage) and decides APPROVE or REQUEST_CHANGES, which gates the merge. Writes the quality report to docs/reviews/.
 mode: subagent
-model: opencode-go/deepseek-v4-pro
+model: opencode-go/deepseek-v4-flash
+steps: 30
 permission:
   edit:
     "*": deny
