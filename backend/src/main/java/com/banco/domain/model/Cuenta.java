@@ -1,22 +1,24 @@
 package com.banco.domain.model;
 
-import com.banco.domain.exception.SaldoInsuficienteException;
+import com.banco.domain.exception.CuentaBloqueadaException;
 import com.banco.domain.vo.CBU;
-import com.banco.domain.vo.Money;
 import com.banco.domain.vo.Moneda;
+import com.banco.domain.vo.Money;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
- * Agregado raíz del módulo cuentas (A-001 — agregado mínimo requerido por las
- * transferencias, SPEC-004 §10). Invariante de saldo: nunca negativo
- * (BR-001) — {@code debitar} lanza {@link SaldoInsuficienteException} si el
- * monto supera el saldo; {@code acreditar} lo incrementa.
+ * Agregado raíz del módulo cuentas (ARCHITECTURE.md §4). Único punto de
+ * mutación del saldo; valida a través de sus VOs y enums (CBU, Money, Moneda
+ * validan en construcción). Incluye la transición {@code bloquear()} (FR-007,
+ * A-003) y la guarda de BR-003 (A-001).
  *
- * {@code version} sostiene el optimistic lock ({@code @Version} en la
- * proyección JPA — BR-006); se mapea en ambos sentidos en el adapter
- * (docs/architecture/SPEC-004.md §8.8).
+ * <p>Invariante: {@code saldo.moneda() == moneda} (garantizado por la
+ * {@code CuentaFactory}; el adapter mapea ambas a columnas separadas).
+ *
+ * <p>El constructor público queda solo para reconstrucción desde persistencia
+ * (convención de {@code Cliente}); la creación la centraliza
+ * {@code CuentaFactory} (BR-004).
  */
 public class Cuenta {
 
@@ -24,11 +26,11 @@ public class Cuenta {
     private final Long clienteId;
     private final CBU cbu;
     private final TipoCuenta tipo;
+    private final Money saldo;
     private final Moneda moneda;
-    private final Instant createdAt;
-    private Money saldo;
     private EstadoCuenta estado;
-    private Long version;
+    private final Instant createdAt;
+    private final Long version;
 
     /**
      * Constructor público para reconstrucción desde persistencia (adapter).
@@ -47,33 +49,21 @@ public class Cuenta {
     }
 
     /**
-     * Factory de alta: id null (lo asigna la BD), saldo 0, estado ACTIVA y
-     * version 0 (A-001, docs/architecture/SPEC-004.md §8.2).
+     * Transición {@code ACTIVA → BLOQUEADA} (FR-007, A-003). La guarda de
+     * BR-003 (A-001) lanza {@link CuentaBloqueadaException} ante cualquier
+     * operación de negocio sobre una cuenta {@code BLOQUEADA} (incluido volver
+     * a {@code bloquear()}); los métodos de dinero de SPEC-004/005 invocarán
+     * esta misma guarda primero.
      */
-    public static Cuenta crear(Long clienteId, TipoCuenta tipo, CBU cbu, Moneda moneda,
-                               Instant createdAt) {
-        return new Cuenta(null, clienteId, cbu, tipo,
-                new Money(BigDecimal.ZERO, moneda.currency()), moneda,
-                EstadoCuenta.ACTIVA, createdAt, 0L);
+    public void bloquear() {
+        verificarActiva();
+        this.estado = EstadoCuenta.BLOQUEADA;
     }
 
-    /**
-     * Debita un monto (BR-001). Doble barrera con el paso 9 del validador:
-     * la validación ya verificó el saldo, pero el invariante del agregado se
-     * re-verifica aquí (docs/architecture/SPEC-004.md §8.3).
-     */
-    public void debitar(Money monto) {
-        if (monto.esMayorQue(saldo)) {
-            throw new SaldoInsuficienteException();
+    private void verificarActiva() {
+        if (estado != EstadoCuenta.ACTIVA) {
+            throw new CuentaBloqueadaException();
         }
-        saldo = saldo.restar(monto);
-    }
-
-    /**
-     * Acredita un monto (BR-001).
-     */
-    public void acreditar(Money monto) {
-        saldo = saldo.sumar(monto);
     }
 
     public Long getId() {

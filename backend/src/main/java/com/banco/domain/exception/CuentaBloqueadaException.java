@@ -1,8 +1,9 @@
 package com.banco.domain.exception;
 
 /**
- * Cuenta en estado BLOQUEADA (ERR-003 → 422 CUENTA_BLOQUEADA, BR-002): una
- * cuenta bloqueada no participa en transferencias.
+ * Operar una cuenta {@code BLOQUEADA} (BR-003, A-001) → 422. La lanza la
+ * guarda interna del agregado {@code Cuenta} ante cualquier operación de
+ * negocio sobre una cuenta bloqueada (incluido volver a {@code bloquear()}).
  */
 public class CuentaBloqueadaException extends RuntimeException {
 

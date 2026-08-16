@@ -5,37 +5,28 @@ import com.banco.domain.model.EstadoCuenta;
 import com.banco.domain.model.TipoCuenta;
 import com.banco.domain.port.CuentaRepository;
 import com.banco.domain.vo.CBU;
-import com.banco.domain.vo.Money;
 import com.banco.domain.vo.Moneda;
+import com.banco.domain.vo.Money;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
-import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Adaptador JPA del puerto {@link CuentaRepository}. Mapeo explícito
- * Cuenta ↔ CuentaJpaEntity (enums como String, VOs mapeados manualmente, sin
- * AttributeConverter) con la {@code version} mapeada en ambos sentidos —
- * crítica para el optimistic lock (docs/architecture/SPEC-004.md §8.8).
- *
- * La agregación del límite diario (BR-004) vive aquí por mandato de la spec
- * §10, pero los datos viven en {@code movimientos}: se delega en
- * {@link MovimientoJpaRepository} (§8.10).
+ * {@code Cuenta ↔ CuentaJpaEntity} (enums como String = {@code name()} /
+ * {@code valueOf(...)}; {@code Money} ↔ {@code BigDecimal}; sin
+ * {@code AttributeConverter} — convención de SPEC-001 §5.4). {@code version}
+ * se mapea en ambas direcciones para que el optimistic lock funcione en
+ * SPEC-004/005.
  */
 @Component
 public class CuentaRepositoryAdapter implements CuentaRepository {
 
     private final CuentaJpaRepository jpaRepository;
-    private final MovimientoJpaRepository movimientoJpaRepository;
 
-    public CuentaRepositoryAdapter(CuentaJpaRepository jpaRepository,
-                                   MovimientoJpaRepository movimientoJpaRepository) {
+    public CuentaRepositoryAdapter(CuentaJpaRepository jpaRepository) {
         this.jpaRepository = jpaRepository;
-        this.movimientoJpaRepository = movimientoJpaRepository;
     }
 
     @Override
@@ -55,15 +46,21 @@ public class CuentaRepositoryAdapter implements CuentaRepository {
 
     @Override
     public List<Cuenta> findByClienteId(Long clienteId) {
-        return jpaRepository.findByClienteId(clienteId).stream().map(this::toDomain).toList();
+        return jpaRepository.findByClienteIdOrderByIdAsc(clienteId).stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     @Override
-    public Money montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate dia) {
-        // "Día calendario" en UTC (convención de almacenamiento del repo — V1).
-        Instant inicio = dia.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant fin = dia.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-        return Money.ars(movimientoJpaRepository.sumarTransferenciasSalientesDelDia(clienteId, inicio, fin));
+    public List<Cuenta> findAll() {
+        return jpaRepository.findAllByOrderByIdAsc().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public boolean existsByCbu(CBU cbu) {
+        return jpaRepository.existsByCbu(cbu.valor());
     }
 
     private CuentaJpaEntity toEntity(Cuenta cuenta) {
@@ -73,20 +70,17 @@ public class CuentaRepositoryAdapter implements CuentaRepository {
         entity.setCbu(cuenta.getCbu().valor());
         entity.setTipo(cuenta.getTipo().name());
         entity.setSaldo(cuenta.getSaldo().monto());
-        entity.setMoneda(cuenta.getMoneda().name());
+        entity.setMoneda(cuenta.getMoneda().codigo());
         entity.setEstado(cuenta.getEstado().name());
-        entity.setCreatedAt(cuenta.getCreatedAt());
         entity.setVersion(cuenta.getVersion());
+        entity.setCreatedAt(cuenta.getCreatedAt());
         return entity;
     }
 
     private Cuenta toDomain(CuentaJpaEntity entity) {
+        Moneda moneda = new Moneda(entity.getMoneda());
         return new Cuenta(entity.getId(), entity.getClienteId(), new CBU(entity.getCbu()),
-                TipoCuenta.valueOf(entity.getTipo()),
-                new Money(entity.getSaldo(), Currency.getInstance(entity.getMoneda())),
-                Moneda.valueOf(entity.getMoneda()),
-                EstadoCuenta.valueOf(entity.getEstado()),
-                entity.getCreatedAt(),
-                entity.getVersion());
+                TipoCuenta.valueOf(entity.getTipo()), new Money(entity.getSaldo(), moneda), moneda,
+                EstadoCuenta.valueOf(entity.getEstado()), entity.getCreatedAt(), entity.getVersion());
     }
 }

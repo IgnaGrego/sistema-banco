@@ -1,7 +1,7 @@
 package com.banco.domain.exception;
 
 /**
- * Cuenta origen/destino inexistente (ERR-002 → 404 CUENTA_NO_ENCONTRADA).
+ * Cuenta inexistente (ERR-003) → 404.
  */
 public class CuentaNoEncontradaException extends RuntimeException {
 

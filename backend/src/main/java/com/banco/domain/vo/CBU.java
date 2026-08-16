@@ -3,11 +3,9 @@ package com.banco.domain.vo;
 import com.banco.domain.exception.CbuInvalidoException;
 
 /**
- * Value object del CBU (Clave Bancaria Uniforme): exactamente 22 dígitos
- * (8 de banco + 14 de cuenta, estándar real argentino). Valida en el
- * constructor (SPEC-004 §8.2); el formato de la spec se definió en
- * docs/architecture/SPEC-004.md §8.2 (la discrepancia con el ejemplo de
- * FR-001 se documenta en §12).
+ * Value object del CBU (BR-001): exactamente 22 dígitos numéricos
+ * (8 banco + 4 sucursal + 10 cuenta — A-002). La regla vive en el VO
+ * (como {@code DNI}).
  */
 public record CBU(String valor) {
 

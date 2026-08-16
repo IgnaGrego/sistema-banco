@@ -13,17 +13,17 @@ import java.time.Instant;
 
 /**
  * Proyección JPA de la tabla {@code cuentas} (sin lógica de negocio). El
- * esquema lo define Flyway (V3__cuentas_y_movimientos.sql); Hibernate solo
- * valida.
+ * esquema lo define Flyway (V3__cuentas.sql); Hibernate solo valida
+ * ({@code ddl-auto: validate}).
  *
- * {@code version} con {@link Version} sostiene el optimistic lock (BR-006);
- * se mapea en AMBOS sentidos en {@link CuentaRepositoryAdapter} (crítico para
- * que el lock dispare — docs/architecture/SPEC-004.md §8.8).
+ * <p>{@code @Version} (optimistic locking, ARCHITECTURE.md §5): {@code Cuenta}
+ * es el agregado que moverá dinero en SPEC-004/005; el campo {@code version}
+ * se persiste y se reconstruye por el adapter en ambas direcciones.
  *
- * NOTA {@code createdAt}/{@code fecha}: Hibernate 6 mapea {@code Instant} a
+ * <p>NOTA created_at: Hibernate 6 mapea {@code java.time.Instant} a
  * "timestamp(6) with time zone"; la migración V3 usa
- * {@code TIMESTAMP WITH TIME ZONE} para que {@code ddl-auto: validate} pase
- * (lección V1).
+ * {@code TIMESTAMP WITH TIME ZONE} (desviación documentada, misma mecánica que
+ * {@code fecha_alta} de V1).
  */
 @Entity
 @Table(name = "cuentas")
@@ -39,24 +39,24 @@ public class CuentaJpaEntity {
     @Column(nullable = false, length = 22)
     private String cbu;
 
-    @Column(nullable = false, length = 15)
+    @Column(nullable = false, length = 20)
     private String tipo;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal saldo;
 
     @Column(nullable = false, length = 3)
     private String moneda;
 
-    @Column(nullable = false, length = 9)
+    @Column(nullable = false, length = 20)
     private String estado;
+
+    @Version
+    @Column(nullable = false) // version BIGINT NOT NULL DEFAULT 0 (V3)
+    private Long version;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
-
-    @Version
-    @Column(nullable = false)
-    private Long version;
 
     public Long getId() {
         return id;
@@ -114,19 +114,19 @@ public class CuentaJpaEntity {
         this.estado = estado;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public Long getVersion() {
         return version;
     }
 
     public void setVersion(Long version) {
         this.version = version;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 }

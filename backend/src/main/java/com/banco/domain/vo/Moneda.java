@@ -1,16 +1,18 @@
 package com.banco.domain.vo;
 
-import java.util.Currency;
+import com.banco.domain.exception.MonedaInvalidaException;
 
 /**
- * Monedas soportadas (MVP: solo {@code ARS} — BR-007, SPEC-004 §12).
- * Expone la {@link Currency} ISO correspondiente para {@link Money}.
+ * Value object de moneda (código ISO 4217 alpha-3). Record con {@code String}
+ * (no enum): distingue "formato inválido" (400, {@link MonedaInvalidaException})
+ * de "moneda no soportada" (422, p. ej. USD — decisión de soporte en la capa
+ * de aplicación).
  */
-public enum Moneda {
+public record Moneda(String codigo) {
 
-    ARS;
-
-    public Currency currency() {
-        return Currency.getInstance(name());
+    public Moneda {
+        if (codigo == null || !codigo.matches("^[A-Z]{3}$")) {
+            throw new MonedaInvalidaException();
+        }
     }
 }
