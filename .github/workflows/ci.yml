@@ -13,16 +13,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Los módulos se crean recién en los Sprints (backend: Sprint 1,
+      # frontend: Sprint 4). Si aún no existe el proyecto, el job se saltea
+      # para que el CI quede verde durante el scaffold.
+      - name: Check Maven project exists
+        id: maven
+        run: |
+          if [ -f backend/pom.xml ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        if: steps.maven.outputs.exists == 'true'
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
 
       - name: Build and test
+        if: steps.maven.outputs.exists == 'true'
         run: mvn -B verify
         working-directory: backend
+
+      - name: Skip (no backend/pom.xml yet)
+        if: steps.maven.outputs.exists == 'false'
+        run: echo "backend/pom.xml todavia no existe (Sprint 1 pendiente). Skipping."
 
   frontend:
     name: Frontend (lint + typecheck)
@@ -30,7 +44,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check package.json exists
+        id: fe
+        run: |
+          if [ -f frontend/package.json ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+
       - name: Set up Node
+        if: steps.fe.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -38,13 +58,20 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install
+        if: steps.fe.outputs.exists == 'true'
         run: npm ci
         working-directory: frontend
 
       - name: Lint
+        if: steps.fe.outputs.exists == 'true'
         run: npm run lint
         working-directory: frontend
 
       - name: Typecheck
+        if: steps.fe.outputs.exists == 'true'
         run: npm run typecheck
         working-directory: frontend
+
+      - name: Skip (no frontend/package.json yet)
+        if: steps.fe.outputs.exists == 'false'
+        run: echo "frontend/package.json todavia no existe (Sprint 4 pendiente). Skipping."
