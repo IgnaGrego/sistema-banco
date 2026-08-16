@@ -35,8 +35,11 @@ Quedan dos decisiones técnicas no cubiertas por la spec ni por ADR-003:
 2. **La emisión vive en scope de test**: `JwtTokenFactory` en
    `src/test/java/com/banco/support/`, que firma tokens HS256 con el mismo
    secret de `application-test.yml` y el mismo contrato de claims que
-   `JwtService` espera. Se provee como bean vía `@TestConfiguration` en
-   `BaseIntegrationTest`. Producción queda libre de código de test.
+   `JwtService` espera. Se provee como bean vía `@TestConfiguration` anidada en
+   la clase de test concreta que se ejecuta (p. ej. `ClienteApiIntegrationTest`),
+   porque Spring Boot solo registra automáticamente las `@TestConfiguration`
+   anidadas en la clase de test ejecutada. Producción queda libre de código de
+   test.
 3. **Propiedad resuelta por claim `clienteId` en la capa de aplicación**:
    `ObtenerClienteUseCase.ejecutar(ObtenerClienteQuery(id, rol, clienteIdClaim))`
    lanza `AccesoDenegadoException` (→ `403`) cuando `rol == "CLIENTE"` y el

@@ -272,7 +272,7 @@ El developer crea todo el proyecto Maven desde cero. Lista exhaustiva
 | --- | --- |
 | `resources/application-test.yml` | Secret JWT de test + config (ver §8.7). |
 | `java/com/banco/support/JwtTokenFactory.java` | Emisión de tokens de test (ver §8.4). |
-| `java/com/banco/integration/BaseIntegrationTest.java` | Contenedor Postgres + `MockMvc` + bean de `JwtTokenFactory`. |
+| `java/com/banco/integration/BaseIntegrationTest.java` | Contenedor Postgres + `MockMvc`; el bean `JwtTokenFactory` lo declara cada test de integración concreto. |
 | `java/com/banco/integration/ClienteApiIntegrationTest.java` | Endpoints REST y códigos de estado (ver §10). |
 | `java/com/banco/domain/DNITest.java`, `java/com/banco/domain/ClienteTest.java` | VOs y entidad. |
 | `java/com/banco/application/ClienteValidatorTest.java`, `.../CrearClienteUseCaseTest.java`, `.../ActualizarClienteUseCaseTest.java`, `.../ObtenerClienteUseCaseTest.java`, `.../ListarClientesUseCaseTest.java` | Use cases y cadena de validación. |
@@ -355,8 +355,12 @@ iat, exp:   exp = now + banco.security.jwt-expiration-minutes (default 60)
 ```
 
 - Métodos: `String tokenAdmin()`, `String tokenCliente(Long clienteId)`.
-- Se provee como bean en `BaseIntegrationTest` mediante una clase
-  `@TestConfiguration` anidada que lo construye con
+- Se provee como bean mediante una clase `@TestConfiguration` anidada en la
+  clase de test concreta que se ejecuta (p. ej. `ClienteApiIntegrationTest`),
+  no en `BaseIntegrationTest`: Spring Boot solo auto-registra las
+  `@TestConfiguration` anidadas en la clase de test ejecutada, no en sus
+  superclases. Cada test de integración concreto declara su propia
+  `@TestConfiguration TokenConfig` que construye `JwtTokenFactory` con
   `@Value("${banco.security.jwt-secret}")` y
   `@Value("${banco.security.jwt-expiration-minutes:60}")`. Así los tests de
   integración inyectan `JwtTokenFactory` sin tocar código de producción.
@@ -473,7 +477,8 @@ banco:
 
 ### Integración (Spring Boot Test + Testcontainers + MockMvc)
 
-`BaseIntegrationTest`:
+`BaseIntegrationTest` (solo contenedor Postgres + `MockMvc`; **sin**
+`TokenConfig`):
 
 ```java
 @Testcontainers(disabledWithoutDocker = true)   // sin Docker local: se omiten; en CI corren
@@ -484,14 +489,33 @@ public abstract class BaseIntegrationTest {
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16");
     @Autowired protected MockMvc mockMvc;
     @Autowired protected JwtTokenFactory tokens;
-    @TestConfiguration
-    static class TokenConfig { /* @Bean JwtTokenFactory con @Value del secret y expiración */ }
 }
 ```
 
 **Decisión documentada:** `disabledWithoutDocker = true` hace que `mvn test`
 local sin Docker omita los tests de integración (no falla el build), mientras
 CI (ubuntu-latest con Docker) los ejecuta de verdad (AC-024).
+
+El bean `JwtTokenFactory` lo declara la clase de test concreta que se ejecuta
+con su propia `@TestConfiguration` anidada: Spring Boot solo auto-registra las
+`@TestConfiguration` anidadas en la clase de test ejecutada, no en sus
+superclases. Por eso `TokenConfig` vive en `ClienteApiIntegrationTest`, no en
+`BaseIntegrationTest`:
+
+```java
+class ClienteApiIntegrationTest extends BaseIntegrationTest {
+    @TestConfiguration
+    static class TokenConfig {
+        @Bean
+        JwtTokenFactory jwtTokenFactory(
+                @Value("${banco.security.jwt-secret}") String secret,
+                @Value("${banco.security.jwt-expiration-minutes:60}") long expirationMinutes) {
+            return new JwtTokenFactory(secret, expirationMinutes);
+        }
+    }
+    // ... métodos por AC (ver tabla abajo)
+}
+```
 
 `ClienteApiIntegrationTest` (un método por criterio, nombre legible):
 
