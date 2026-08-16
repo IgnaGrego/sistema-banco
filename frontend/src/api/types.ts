@@ -112,6 +112,21 @@ export interface RetiroConfirmacion {
   fechaHora: string;
 }
 
+/** POST /api/v1/auth/register (SPEC-003 FR-001). Espejo de `RegistrarUsuarioRequest(String username, String password, String rol, Long clienteId)`; `clienteId` es `null` para rol ADMIN (A-003, BR-004). */
+export interface RegistrarUsuarioRequest {
+  username: string;
+  password: string;
+  rol: Rol;
+  clienteId: number | null;
+}
+
+/** 201 de POST /api/v1/auth/register. Espejo de `UsuarioDto(Long id, String username, String rol)` — NUNCA password ni su hash (BR-001 del backend, A-005). */
+export interface UsuarioDto {
+  id: number;
+  username: string;
+  rol: Rol;
+}
+
 export interface DetalleError {
   campo: string;
   mensaje: string;

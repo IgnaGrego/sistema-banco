@@ -1,5 +1,5 @@
 import { request } from './httpClient';
-import type { LoginRequest, LoginResponse } from './types';
+import type { LoginRequest, LoginResponse, RegistrarUsuarioRequest, UsuarioDto } from './types';
 
 /**
  * POST /api/v1/auth/login → 200 {token} (FR-005). Único call-site con
@@ -14,4 +14,19 @@ export async function login(body: LoginRequest): Promise<string> {
     autenticar: false,
   });
   return respuesta.token;
+}
+
+/**
+ * POST /api/v1/auth/register → 201 UsuarioDto (SPEC-003 FR-001; A-002).
+ * Endpoint PÚBLICO (permitAll — SecurityConfig): se declara `autenticar: false`
+ * (espejo de `login()` en el mismo módulo) para no adjuntar un header
+ * Authorization innecesario. El endpoint nunca devuelve 401, así que no
+ * dispara la limpieza global de sesión del httpClient.
+ */
+export async function registro(body: RegistrarUsuarioRequest): Promise<UsuarioDto> {
+  return request<UsuarioDto>('/auth/register', {
+    method: 'POST',
+    body,
+    autenticar: false,
+  });
 }
