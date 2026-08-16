@@ -4,7 +4,7 @@
 - **Review type:** compliance (reviewer)
 - **Date:** 2026-08-16
 - **Reviewer:** SDD reviewer
-- **Implementation attempts:** 1 (revisión estática completa + CI `mvn -B verify` verde en HEAD)
+- **Implementation attempts:** 2 (intento 1: revisión estática completa + CI verde en HEAD; intento 2: re-verificación del fix `16aa2b3` del blocker del code-reviewer — ver "Re-verificación (fix 16aa2b3)")
 
 ## Summary
 
@@ -31,7 +31,7 @@
 
 ### Major
 
-- Ninguno.
+- Ninguno. (El hallazgo Major #1 del code-reviewer — `clienteId` ausente/null en apertura → `500` en lugar de `400` — fue corregido en el commit `16aa2b3` y re-verificado; ver "Re-verificación (fix 16aa2b3)".)
 
 ### Minor / Nit
 
@@ -59,6 +59,78 @@ Checklist completa (revisión estática de todos los archivos nuevos/modificados
 13. **Layering / ArchUnit (AC-030)** — OK. `domain` sin imports de Spring/Jakarta/otras capas; `application` importa solo `com.banco.application..`, `com.banco.domain..` y `java..` (SecureRandom es `java.security`); Spring/controllers solo en `infrastructure`. `LayerArchitectureTest` sin cambios (4 reglas existentes, no debilitadas). Verificado import por import en las 14 clases de domain y 9 de application.
 14. **Test coverage (AGENTS.md §12, spec §11)** — OK. Unit: `CBUTest`, `MoneyTest`, `MonedaTest`, `CuentaTest`, `CuentaFactoryTest`, `AperturaValidatorTest`, `AbrirCuentaUseCaseTest`, `ObtenerCuentaUseCaseTest`, `ObtenerCuentaPorCbuUseCaseTest`, `ListarCuentasUseCaseTest`, `GlobalExceptionHandlerTest`. Integración Testcontainers: `CuentaApiIntegrationTest` (AC-001..AC-023 + persistencia entre requests + constraints UNIQUE/FK vía JdbcTemplate + mapeo 409 del handler). ArchUnit: `LayerArchitectureTest` (AC-030). CI verde: `mvn -B verify` → BUILD SUCCESS (jobs de push y pull_request de PR #20), unit + integración Testcontainers (Postgres real) + ArchUnit.
 15. **Scope** — OK. `git diff origin/testing...feature/spec-002 --stat`: 47 archivos, todos de SPEC-002 (2 docs, 24 main, 12 test, 1 migración, 2 modificados SecurityConfig/GlobalExceptionHandler); sin cambios en clientes/auth, `pom.xml`, `application.yml`, frontend o docker; sin dependencias nuevas; sin ADR nuevo (justificado en architecture §11). Trabajo previo de SPEC-004 preservado en `feature/spec-004` (fuera de esta rama).
+
+## Re-verificación (fix 16aa2b3)
+
+Contexto: tras el PASS inicial, el code-reviewer reportó 1 Major
+(`docs/reviews/SPEC-002-code-review.md`): `POST /api/v1/cuentas` sin `clienteId`
+(o con `"clienteId": null`) pasaba la validación y caía en
+`clienteRepository.findById(null)` → `500 ERROR_INTERNO` en lugar de `400`
+(ERR-001). El developer lo corrigió en el commit `16aa2b3` ("fix(spec-002):
+validar clienteId obligatorio en apertura (400 en vez de 500)"). Esta sección
+documenta la re-verificación del fix sobre el HEAD `db8dda40`.
+
+1. **`application/validator/AperturaValidator.java`** — firma
+   `validar(Long clienteId, String tipo, String moneda)`; primer chequeo
+   `clienteId == null` → `DatosInvalidosException("clienteId", "El cliente
+   titular es obligatorio")`, cortocircuitando antes de `tipo`/`moneda`.
+   Correcto y consistente con ERR-001 (400 con detalle de campo) y FR-001
+   (`clienteId` es parte del payload de apertura).
+2. **`application/usecase/AbrirCuentaUseCase.java:46`** — call-site
+   `validator.validar(command.clienteId(), command.tipo(), command.moneda())`.
+   Con el chequeo previo, `clienteRepository.findById(null)` (línea 66) es
+   inalcanzable: la causa raíz del 500 queda eliminada. Orden de pasos sin
+   cambios.
+3. **`AperturaValidatorTest`** — nuevo caso
+   `clienteIdNullLanzaDatosInvalidosConCampoClienteId`
+   (`validar(null, "CAJA_AHORRO", "ARS")` → `DatosInvalidosException` con
+   campo `"clienteId"`); casos existentes adaptados a la firma de 3 args; el
+   test de cortocircuito ahora asume `clienteId` como primer error
+   (`validar(null, "AHORRO", "ar")` → `"clienteId"`).
+4. **`CuentaApiIntegrationTest`** — nuevo
+   `ERR001_aperturaSinClienteIdResponde400ConCampoClienteId`: POST
+   `{"tipo":"CAJA_AHORRO"}` (sin `clienteId`) con token ADMIN → `400`,
+   `code == DATOS_INVALIDOS`, `details[0].campo == "clienteId"` (camino real
+   vía `GlobalExceptionHandler` → envelope).
+5. **`AbrirCuentaUseCaseTest`** — solo adaptación mecánica a la firma (mock
+   del validador: `verify(validator).validar(7L, "CAJA_AHORRO", null)` y
+   matcher `any(), anyString(), anyString()`); sin cambio de comportamiento;
+   sigue verificando que el validador corre antes que los chequeos de
+   repositorio.
+6. **`docs/architecture/SPEC-002.md` §8.1** — fila de `AperturaValidator`
+   actualizada (firma de 3 args + chequeo `clienteId` → 400 FR-001/ERR-001,
+   corta ante el primer error); coherente con la implementación. Solo esa
+   fila fue modificada por el fix. **Nit (no bloqueante):** el pseudo-código
+   de §8.3 (paso 1 de "Abrir") aún muestra la llamada antigua de 2 args
+   (`validar(command.tipo(), command.moneda())`); no afecta el cumplimiento
+   (la fila del file map §8.1 es la referencia del diseño y el
+   comportamiento real es correcto), pero conviene sincronizarlo en un
+   commit de docs posterior.
+
+Consistencia con la spec: ERR-001 cubre "tipos de dato incorrectos" en
+`POST /api/v1/cuentas` y exige `400` con el detalle del/los campo(s); FR-001
+lista `clienteId` como campo del payload de apertura. El `400` con
+`details[0].campo == "clienteId"` es exactamente esa semántica (mismo patrón
+que AC-004/`tipo`). No se introdujo ningún gap nuevo: los casos de éxito
+(AC-001/AC-002), el 404 de titular inexistente (AC-005), el 422 de moneda
+(AC-003) y el resto del flujo quedan intactos — el fix solo agrega un chequeo
+previo en la validación de forma de la apertura.
+
+Alcance: `git log origin/testing..HEAD` (verificado vía reflog local y API de
+GitHub) muestra exactamente 10 commits — los 7 originales de SPEC-002 +
+reporte de review (PASS) + fix `16aa2b3` + reporte de code review
+(REQUEST_CHANGES). PR #20: 10 commits / 49 archivos (47 de la implementación
++ 2 reportes); el fix modificó solo los 5 archivos de código/test + la fila
+§8.1 del doc de arquitectura. Sin cambios ajenos.
+
+CI: `gh pr checks 20` → los 4 check runs sobre el HEAD `db8dda40` (que
+incluye el fix) están **completados y en success** (Backend "build + tests"
+×2 — unit + integración Testcontainers + ArchUnit — y Frontend
+"lint + typecheck" ×2). CI verde confirmado tras el fix.
+
+Resultado de la re-verificación: **el blocker está corregido y verificado; no
+hay hallazgos nuevos que afecten el cumplimiento; el veredicto PASS se
+mantiene.**
 
 ## Result
 
