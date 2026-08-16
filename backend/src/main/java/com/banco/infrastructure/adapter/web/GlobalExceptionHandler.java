@@ -1,11 +1,16 @@
 package com.banco.infrastructure.adapter.web;
 
 import com.banco.domain.exception.AccesoDenegadoException;
+import com.banco.domain.exception.CbuInvalidoException;
 import com.banco.domain.exception.ClienteDuplicadoException;
 import com.banco.domain.exception.ClienteNoEncontradoException;
 import com.banco.domain.exception.CredencialesInvalidasException;
+import com.banco.domain.exception.CuentaBloqueadaException;
+import com.banco.domain.exception.CuentaNoEncontradaException;
 import com.banco.domain.exception.DatosInvalidosException;
 import com.banco.domain.exception.DniInvalidoException;
+import com.banco.domain.exception.MonedaInvalidaException;
+import com.banco.domain.exception.MonedaNoSoportadaException;
 import com.banco.domain.exception.UsernameDuplicadoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +26,9 @@ import java.util.List;
 
 /**
  * Traduce excepciones al envelope estándar según la tabla de mapeo de
- * docs/architecture/SPEC-001.md §8.6 y SPEC-003.md §8.6. Los 401/403 de Spring
- * Security los escriben el entry point y el access-denied handler de
- * SecurityConfig.
+ * docs/architecture/SPEC-001.md §8.6, SPEC-003.md §8.6 y SPEC-002.md §8.5.
+ * Los 401/403 de Spring Security los escriben el entry point y el access-denied
+ * handler de SecurityConfig.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -52,6 +57,24 @@ public class GlobalExceptionHandler {
                 List.of(new DetalleError("dni", e.getMessage())));
     }
 
+    @ExceptionHandler(CbuInvalidoException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleCbuInvalido(CbuInvalidoException e) {
+        // ERR-005 → 400 CBU_INVALIDO con details[{campo:"cbu"}] (ERR-005 usa el
+        // código propio; simetría con el mapeo de DNI).
+        return new ErrorResponse("CBU_INVALIDO", e.getMessage(),
+                List.of(new DetalleError("cbu", e.getMessage())));
+    }
+
+    @ExceptionHandler(MonedaInvalidaException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleMonedaInvalida(MonedaInvalidaException e) {
+        // Defensivo (lo lanza el VO Moneda): 400 DATOS_INVALIDOS con
+        // details[{campo:"moneda"}] (ERR-001/A-005).
+        return new ErrorResponse("DATOS_INVALIDOS", e.getMessage(),
+                List.of(new DetalleError("moneda", e.getMessage())));
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
@@ -76,6 +99,13 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("CLIENTE_NO_ENCONTRADO", e.getMessage(), null);
     }
 
+    @ExceptionHandler(CuentaNoEncontradaException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleCuentaNoEncontrada(CuentaNoEncontradaException e) {
+        // ERR-003 → 404 CUENTA_NO_ENCONTRADA, sin details.
+        return new ErrorResponse("CUENTA_NO_ENCONTRADA", e.getMessage(), null);
+    }
+
     @ExceptionHandler(ClienteDuplicadoException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleClienteDuplicado(ClienteDuplicadoException e) {
@@ -90,6 +120,20 @@ public class GlobalExceptionHandler {
         // (misma semántica que SPEC-001 ERR-001).
         return new ErrorResponse("CONFLICTO_UNICIDAD", e.getMessage(),
                 List.of(new DetalleError(e.getCampo(), e.getMessage())));
+    }
+
+    @ExceptionHandler(CuentaBloqueadaException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleCuentaBloqueada(CuentaBloqueadaException e) {
+        // BR-003, ERR-008 → 422 CUENTA_BLOQUEADA, sin details (A-001).
+        return new ErrorResponse("CUENTA_BLOQUEADA", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(MonedaNoSoportadaException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleMonedaNoSoportada(MonedaNoSoportadaException e) {
+        // BR-005, ERR-009 → 422 MONEDA_NO_SOPORTADA, sin details (A-005).
+        return new ErrorResponse("MONEDA_NO_SOPORTADA", e.getMessage(), null);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
