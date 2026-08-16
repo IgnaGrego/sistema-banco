@@ -38,6 +38,18 @@ services:
       - opencode-data:/root/.local/share/opencode
       - opencode-config:/root/.config/opencode
 
+  # Túnel HTTPS saliente. GitHub solo entrega webhooks por HTTPS; como el gym
+  # ocupa los puertos 80/443 del host, usamos un túnel outbound de Cloudflare
+  # que no toca el host ni necesita DNS ni certificados.
+  # La URL https://...trycloudflare.com se obtiene con:
+  #   docker compose logs -f tunnel
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://webhook:8080
+    depends_on:
+      - webhook
+
 volumes:
   queue:
   work:
