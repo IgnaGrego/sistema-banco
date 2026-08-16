@@ -75,15 +75,19 @@ public class TransferValidator {
         }
 
         // 7. Monto válido: > 0, hasta 2 decimales (ERR-004 → 400, BR-003).
-        //    El VO valida monto ≥ 0 y escala ≤ 2; aquí se exige > 0.
-        Money monto = Money.ars(datos.monto());
-        if (monto.esCero()) {
-            throw new DatosInvalidosException("monto", "El monto debe ser mayor a 0");
+        //    El pre-chequeo ocurre ANTES de construir el Money: el VO (SPEC-002)
+        //    solo valida monto ≥ 0 (MoneyInvalidoException no está mapeada →
+        //    caería en 500); el signo/escala (BR-003) se exige aquí para que un
+        //    monto inválido responda 400 DATOS_INVALIDOS con el campo "monto".
+        if (datos.monto() == null || datos.monto().signum() <= 0 || datos.monto().scale() > 2) {
+            throw new DatosInvalidosException("monto",
+                    "El monto debe ser mayor a 0 y tener hasta 2 decimales");
         }
+        Money monto = Money.ars(datos.monto());
 
         // 8. Monedas compatibles (ERR-009 → 422, BR-007). Se compara la
-        //    Currency del Money (spec: "misma moneda (Money con Currency)");
-        //    el enum Moneda solo tiene ARS en el MVP.
+        //    igualdad de Money.moneda() (código ISO 4217 alpha-3 del record
+        //    Moneda de SPEC-002 — ADR-007).
         if (!origen.getSaldo().moneda().equals(destino.getSaldo().moneda())) {
             throw new MonedaIncompatibleException();
         }
