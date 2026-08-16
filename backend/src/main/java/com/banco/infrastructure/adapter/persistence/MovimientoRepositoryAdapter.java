@@ -45,9 +45,10 @@ public class MovimientoRepositoryAdapter implements MovimientoRepository {
     }
 
     private Movimiento toDomain(MovimientoJpaEntity entity) {
+        // Moneda del movimiento: ARS (moneda del MVP — SPEC-004, BR-003).
         return new Movimiento(entity.getId(), entity.getCuentaId(),
                 TipoMovimiento.valueOf(entity.getTipo()),
-                new Money(entity.getMonto(), Moneda.ARS.currency()),
+                new Money(entity.getMonto(), new Moneda("ARS")),
                 entity.getFecha(), entity.getCuentaContraparteId());
     }
 }

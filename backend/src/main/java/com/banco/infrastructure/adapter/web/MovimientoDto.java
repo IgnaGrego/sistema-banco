@@ -15,7 +15,7 @@ public record MovimientoDto(Long id, Long cuentaId, String tipo, BigDecimal mont
     public static MovimientoDto from(Movimiento movimiento) {
         return new MovimientoDto(movimiento.getId(), movimiento.getCuentaId(),
                 movimiento.getTipo().name(), movimiento.getMonto().monto(),
-                movimiento.getMonto().moneda().getCurrencyCode(),
+                movimiento.getMonto().moneda().codigo(),
                 movimiento.getFecha(), movimiento.getCuentaContraparteId());
     }
 }

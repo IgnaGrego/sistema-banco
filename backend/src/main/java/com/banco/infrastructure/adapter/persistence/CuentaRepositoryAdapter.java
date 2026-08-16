@@ -9,6 +9,9 @@ import com.banco.domain.vo.Moneda;
 import com.banco.domain.vo.Money;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,14 +22,21 @@ import java.util.Optional;
  * {@code AttributeConverter} — convención de SPEC-001 §5.4). {@code version}
  * se mapea en ambas direcciones para que el optimistic lock funcione en
  * SPEC-004/005.
+ *
+ * <p>La agregación del límite diario (BR-004 de SPEC-004) delega en
+ * {@link MovimientoJpaRepository}: el dato vive en la tabla {@code movimientos}
+ * (docs/architecture/SPEC-004.md §8.10).
  */
 @Component
 public class CuentaRepositoryAdapter implements CuentaRepository {
 
     private final CuentaJpaRepository jpaRepository;
+    private final MovimientoJpaRepository movimientoJpaRepository;
 
-    public CuentaRepositoryAdapter(CuentaJpaRepository jpaRepository) {
+    public CuentaRepositoryAdapter(CuentaJpaRepository jpaRepository,
+                                   MovimientoJpaRepository movimientoJpaRepository) {
         this.jpaRepository = jpaRepository;
+        this.movimientoJpaRepository = movimientoJpaRepository;
     }
 
     @Override
@@ -61,6 +71,14 @@ public class CuentaRepositoryAdapter implements CuentaRepository {
     @Override
     public boolean existsByCbu(CBU cbu) {
         return jpaRepository.existsByCbu(cbu.valor());
+    }
+
+    @Override
+    public Money montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate dia) {
+        // "Día calendario" en UTC: rango [inicio, fin) cubre las 24 h del día.
+        Instant inicio = dia.atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant fin = dia.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        return Money.ars(movimientoJpaRepository.sumarTransferenciasSalientesDelDia(clienteId, inicio, fin));
     }
 
     private CuentaJpaEntity toEntity(Cuenta cuenta) {

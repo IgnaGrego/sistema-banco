@@ -12,8 +12,7 @@ import java.time.Instant;
 
 /**
  * Proyección JPA de la tabla {@code movimientos} (sin lógica de negocio). El
- * esquema lo define Flyway (V3__cuentas_y_movimientos.sql); Hibernate solo
- * valida.
+ * esquema lo define Flyway (V4__movimientos.sql); Hibernate solo valida.
  */
 @Entity
 @Table(name = "movimientos")
