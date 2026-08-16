@@ -49,14 +49,18 @@ class AutenticarUsuarioUseCaseTest {
 
     @Test
     void happyPathDevuelveElJwtEmitido() {
-        when(usuarioRepository.findByUsername("juan")).thenReturn(Optional.of(usuarioStored()));
+        // Una ÚNICA instancia compartida: Usuario no sobrescribe equals/hashCode,
+        // por lo que el stub/verify de TokenEmisor debe referenciar el MISMO
+        // objeto que findByUsername devuelve (identidad, no igualdad).
+        Usuario stored = usuarioStored();
+        when(usuarioRepository.findByUsername("juan")).thenReturn(Optional.of(stored));
         when(passwordHasher.matches("password123", "bcrypt-hash-60")).thenReturn(true);
-        when(tokenEmisor.emitir(usuarioStored())).thenReturn("jwt-firmado");
+        when(tokenEmisor.emitir(stored)).thenReturn("jwt-firmado");
 
         String token = useCase.ejecutar(new LoginCommand("juan", "password123"));
 
         assertEquals("jwt-firmado", token);
-        verify(tokenEmisor).emitir(usuarioStored());
+        verify(tokenEmisor).emitir(stored);
     }
 
     @Test
@@ -94,9 +98,10 @@ class AutenticarUsuarioUseCaseTest {
 
     @Test
     void elUsernameSeNormalizaConTrim() {
-        when(usuarioRepository.findByUsername("juan")).thenReturn(Optional.of(usuarioStored()));
+        Usuario stored = usuarioStored();
+        when(usuarioRepository.findByUsername("juan")).thenReturn(Optional.of(stored));
         when(passwordHasher.matches("password123", "bcrypt-hash-60")).thenReturn(true);
-        when(tokenEmisor.emitir(usuarioStored())).thenReturn("jwt-firmado");
+        when(tokenEmisor.emitir(stored)).thenReturn("jwt-firmado");
 
         useCase.ejecutar(new LoginCommand("  juan  ", "password123"));
 
@@ -107,9 +112,10 @@ class AutenticarUsuarioUseCaseTest {
     void matchesRecibeLaPasswordEnClaroYElHashAlmacenado() {
         // AC-011: la verificación usa BCrypt matches(rawPassword, hash);
         // nunca se compara la password en claro con el hash ni viceversa.
-        when(usuarioRepository.findByUsername("juan")).thenReturn(Optional.of(usuarioStored()));
+        Usuario stored = usuarioStored();
+        when(usuarioRepository.findByUsername("juan")).thenReturn(Optional.of(stored));
         when(passwordHasher.matches("password123", "bcrypt-hash-60")).thenReturn(true);
-        when(tokenEmisor.emitir(usuarioStored())).thenReturn("jwt-firmado");
+        when(tokenEmisor.emitir(stored)).thenReturn("jwt-firmado");
 
         useCase.ejecutar(new LoginCommand("juan", "password123"));
 
