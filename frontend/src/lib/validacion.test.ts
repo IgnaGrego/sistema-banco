@@ -1,7 +1,9 @@
 import {
   validarAperturaCuenta,
   validarCliente,
+  validarDeposito,
   validarLogin,
+  validarRetiro,
   validarTransferencia,
 } from './validacion';
 
@@ -123,5 +125,58 @@ describe('validarAperturaCuenta (BR-007)', () => {
 
   it('rechaza moneda distinta de ARS (solo ARS en el MVP)', () => {
     expect(validarAperturaCuenta(3, 'CAJA_AHORRO', 'USD')).toHaveProperty('moneda');
+  });
+});
+
+describe('validarDeposito / validarRetiro (SPEC-007, BR-001..BR-003, AC-010)', () => {
+  describe('validarDeposito (BR-001/BR-003)', () => {
+    it('acepta un depósito válido (monto entero y con hasta 2 decimales)', () => {
+      expect(validarDeposito(1, '100')).toEqual({});
+      expect(validarDeposito(1, '100.5')).toEqual({});
+    });
+
+    it('rechaza sin cuenta seleccionada (BR-003)', () => {
+      expect(validarDeposito(null, '100')).toHaveProperty('cuentaId');
+    });
+
+    it('rechaza monto vacío', () => {
+      expect(validarDeposito(1, '')).toHaveProperty('monto');
+      expect(validarDeposito(1, '   ')).toHaveProperty('monto');
+    });
+
+    it('rechaza monto no numérico (BR-001)', () => {
+      expect(validarDeposito(1, 'abc')).toHaveProperty('monto');
+    });
+
+    it('rechaza monto cero o negativo (BR-001)', () => {
+      expect(validarDeposito(1, '0')).toHaveProperty('monto');
+      expect(validarDeposito(1, '-5')).toHaveProperty('monto');
+    });
+
+    it('rechaza monto con más de 2 decimales (BR-001)', () => {
+      expect(validarDeposito(1, '10.555')).toHaveProperty('monto');
+    });
+  });
+
+  describe('validarRetiro (BR-001..BR-003)', () => {
+    it('acepta un retiro válido y el borde monto === saldo (BR-002)', () => {
+      expect(validarRetiro(1, '100', 1000)).toEqual({});
+      expect(validarRetiro(1, '1000', 1000)).toEqual({});
+    });
+
+    it('rechaza monto mayor al saldo (BR-002)', () => {
+      expect(validarRetiro(1, '1500', 1000)).toHaveProperty('monto');
+    });
+
+    it('sin saldo conocido (undefined) se omite el chequeo de saldo (A-002)', () => {
+      expect(validarRetiro(1, '100', undefined)).toEqual({});
+    });
+
+    it('aplica las mismas reglas de monto/cuenta que el depósito', () => {
+      expect(validarRetiro(null, '100', 1000)).toHaveProperty('cuentaId');
+      expect(validarRetiro(1, '', 1000)).toHaveProperty('monto');
+      expect(validarRetiro(1, '0', 1000)).toHaveProperty('monto');
+      expect(validarRetiro(1, '10.555', 1000)).toHaveProperty('monto');
+    });
   });
 });
