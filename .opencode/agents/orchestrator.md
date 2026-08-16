@@ -1,6 +1,7 @@
 ---
 description: Orchestrates the SDD pipeline end-to-end. Receives a feature requirement and drives analyst then architect then developer then reviewer then code-reviewer, manages feedback loops, and executes the merge only when both reviewer and code-reviewer approve.
 mode: primary
+steps: 100
 permission:
   task:
     "*": deny
@@ -57,9 +58,12 @@ needs (spec number, references, context) and instruct it to return its output.
 
 ## Cost guardrails
 
-- Cap the feedback loops: at most **2 re-run rounds** per role (reviewer,
-  code-reviewer). If a round still fails after 2 fixes, stop and report the
-  blocker instead of looping (loops burn tokens without progress).
+- **MANDATORY:** invoke each role at most **2 attempts**. If a role
+  returns an empty result or makes no changes twice, **STOP immediately**, do
+  NOT re-invoke it a third time, and report the blocker in your final report.
+  Never loop on a role that produces no changes.
+- Cap reviewer/code-reviewer fix rounds at **2**. If a round still fails after
+  2 fixes, stop and report the blocker.
 - Prefer the smallest correct change; large rewrites consume disproportionate
   tokens.
 

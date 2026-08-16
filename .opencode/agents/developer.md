@@ -2,7 +2,7 @@
 description: Implements an approved specification following the approved architecture, with tests. The only SDD role allowed to modify application code.
 mode: subagent
 model: opencode-go/deepseek-v4-flash
-steps: 60
+steps: 100
 permission:
   edit: allow
   bash: allow
