@@ -9,7 +9,7 @@
 | E3 | Autenticación | Login JWT + roles (RBAC) | SPEC-003 |
 | E4 | Transferencias | Transferencias atómicas entre cuentas | SPEC-004 |
 | E5 | Caja | Depósitos y retiros | SPEC-005 |
-| E6 | Frontend | SPA React que consume la API | — |
+| E6 | Frontend | SPA React que consume la API | SPEC-006 |
 
 ## Historias de usuario (MVP)
 

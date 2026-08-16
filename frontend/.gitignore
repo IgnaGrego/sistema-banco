@@ -1,0 +1,2 @@
+# Artefactos de TypeScript en modo build (tsc -b)
+*.tsbuildinfo
