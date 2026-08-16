@@ -10,13 +10,16 @@ emitiendo el evento de dominio `TransferenciaRealizada` (FR-004). Además,
 consulta del historial de movimientos de una cuenta (`GET
 /api/v1/cuentas/{id}/movimientos`, FR-005).
 
-Como SPEC-002 (cuentas) nunca se implementó (no existe `Cuenta`, `CBU`, `Money`
-ni migración de cuentas — verificado en el código), esta spec incorpora el
-agregado `Cuenta` **mínimo** requerido por las transferencias (A-001): entidad,
-VOs `CBU`/`Money`, enums, puerto `CuentaRepository`, métodos de dominio
-`debitar`/`acreditar` y factory de creación por tipo. **No** se implementan los
-endpoints de apertura/consulta/listado de cuentas (pertenecen a SPEC-002, out of
-scope).
+SPEC-002 (cuentas) **sí está implementada, revisada y mergeada** (PR #20, rama
+`testing`): existen el agregado `Cuenta` (con `@Version`, `bloquear()` y guarda
+`verificarActiva()`), los VOs `CBU`/`Money`/`Moneda`, el puerto
+`CuentaRepository` y la migración `V3__cuentas.sql`. SPEC-004 **extiende** ese
+modelo aprobado (ADR-007): `Cuenta` gana los métodos de dominio
+`debitar`/`acreditar`, `Money` gana las operaciones aritméticas y la factory
+`ars`, `CuentaRepository` gana la agregación del límite diario, y se agregan
+`Movimiento`, `TipoMovimiento` y `V4__movimientos.sql`. **No** se implementan
+los endpoints de apertura/consulta/listado de cuentas (ya existen en SPEC-002;
+out of scope de esta spec).
 
 ---
 
@@ -28,53 +31,62 @@ Referencia:
   FR-001..FR-005, BR-001..BR-007, AF-001..AF-003, ERR-001..ERR-009,
   AC-001..AC-023, asunciones A-001..A-007).
 - `docs/adr/ADR-001` (monolito hexagonal + DDD), `ADR-002` (PostgreSQL +
-  Flyway), `ADR-003` (JWT + Spring Security + RBAC), y el nuevo `ADR-006`
-  (sección 11): agregado `Cuenta` mínimo (gap de SPEC-002), frontera
-  transaccional y estrategia de concurrencia.
+  Flyway), `ADR-003` (JWT + Spring Security + RBAC), y los nuevos `ADR-006`
+  (sección 11): frontera transaccional y estrategia de concurrencia (su
+  decisión 1 — agregado `Cuenta` mínimo desde cero — queda reemplazada por
+  ADR-007) y `ADR-007` (sección 11): reconciliación de SPEC-004 sobre los
+  VOs/agregado de SPEC-002 (implementada, PR #20).
 
 ---
 
 ## 3. Affected Modules
 
-- **`backend/src/main/java/com/banco/domain`** — nuevos: `model/Cuenta`,
-  `model/Movimiento`, enums `model/TipoCuenta`, `model/EstadoCuenta`,
-  `model/TipoMovimiento`, VOs `vo/CBU`, `vo/Money`, `vo/Moneda`, puertos
-  `port/CuentaRepository`, `port/MovimientoRepository`,
+- **`backend/src/main/java/com/banco/domain`** — **modificados (ya existen
+  desde SPEC-002, aprobados e implementados):** `model/Cuenta` (se agregan
+  `debitar`/`acreditar`; `saldo` deja de ser `final`), `vo/Money` (se agregan
+  `sumar`/`restar`/`esMayorQue`/`esMayorOIgualQue`/`esCero` y la factory
+  `ars`), `port/CuentaRepository` (se agrega
+  `montoTotalTransferenciasSalientesDelDia`). **Nuevos de SPEC-004:**
+  `model/Movimiento`, enum `model/TipoMovimiento`, `port/MovimientoRepository`,
   `port/TransferenciaEventPublisher`, evento `event/TransferenciaRealizada`,
   excepciones `exception/SaldoInsuficienteException`,
-  `exception/CuentaNoEncontradaException`, `exception/CuentaBloqueadaException`,
   `exception/LimiteDiarioExcedidoException`,
   `exception/AutoTransferenciaException`,
-  `exception/MonedaIncompatibleException`, `exception/CbuInvalidoException`.
+  `exception/MonedaIncompatibleException`. VOs/enums `vo/CBU`, `vo/Moneda`,
+  `model/TipoCuenta`, `model/EstadoCuenta` y `factory/CuentaFactory` provienen
+  de SPEC-002 sin cambios (ADR-007); se reutilizan `CuentaNoEncontradaException`,
+  `CuentaBloqueadaException` y `CbuInvalidoException` (SPEC-002).
 - **`backend/src/main/java/com/banco/application`** — nuevos:
   `command/TransferirCommand`, `query/ObtenerMovimientosQuery`,
   `validator/DatosTransferencia`, `validator/TransferenciaValidada`,
   `validator/TransferValidator`, `usecase/TransferirUseCase`,
   `usecase/ObtenerMovimientosUseCase`, `usecase/TransferenciaConfirmacion`
   (resultado de aplicación — ver §8.3).
-- **`backend/src/main/java/com/banco/infrastructure`** — nuevos:
-  `adapter/web/TransferenciaController`, `adapter/web/MovimientoController`,
-  `adapter/web/TransferirRequest`, `adapter/web/MovimientoDto`,
-  `adapter/persistence/CuentaJpaEntity`, `adapter/persistence/CuentaJpaRepository`,
-  `adapter/persistence/CuentaRepositoryAdapter`,
-  `adapter/persistence/MovimientoJpaEntity`,
+- **`backend/src/main/java/com/banco/infrastructure`** — **modificados (ya
+  existen desde SPEC-002):** `adapter/persistence/CuentaJpaRepository` (sin
+  cambios), `adapter/persistence/CuentaRepositoryAdapter` (se agrega la
+  delegación del límite diario a `MovimientoJpaRepository` — §8.10, ADR-007),
+  `security/SecurityConfig` (matchers nuevos — §8.5),
+  `adapter/web/GlobalExceptionHandler` (mapeos nuevos — §8.6). **Nuevos de
+  SPEC-004:** `adapter/web/TransferenciaController`,
+  `adapter/web/MovimientoController`, `adapter/web/TransferirRequest`,
+  `adapter/web/MovimientoDto`, `adapter/persistence/MovimientoJpaEntity`,
   `adapter/persistence/MovimientoJpaRepository`,
   `adapter/persistence/MovimientoRepositoryAdapter`,
   `service/TransferenciaService` (frontera transaccional — §8.8),
   `service/TransferenciaEventPublisherNoop`, `config/TransferenciaBeansConfig`.
-  Modificados: `security/SecurityConfig` (matchers nuevos — §8.5),
-  `adapter/web/GlobalExceptionHandler` (mapeos nuevos — §8.6).
 - **`backend/src/main/resources`** — nueva migración
-  `db/migration/V3__cuentas_y_movimientos.sql` (§6.1); `application.yml` agrega
+  `db/migration/V4__movimientos.sql` (§6.1; la tabla `cuentas` proviene de la
+  `V3__cuentas.sql` de SPEC-002); `application.yml` agrega
   `banco.negocio.limite-diario-transferencias` (§8.7).
 - **`backend/src/test`** — nuevos: `support/CuentaTestHelper` (A-003),
-  `domain/CBUTest`, `domain/MoneyTest`, `domain/CuentaTest`,
   `domain/MovimientoTest`, `application/TransferValidatorTest`,
   `application/TransferirUseCaseTest`,
   `application/ObtenerMovimientosUseCaseTest`,
   `integration/TransferenciaApiIntegrationTest` (AC-001..AC-015),
   `integration/MovimientosApiIntegrationTest` (AC-016..AC-020).
-  Modificado: `src/test/resources/application-test.yml` (nueva propiedad §8.7).
+  Modificados: `domain/MoneyTest`, `domain/CuentaTest` (operaciones nuevas de
+  SPEC-004) y `src/test/resources/application-test.yml` (nueva propiedad §8.7).
 - **No afectado:** frontend, `docker/`, `pom.xml` (sin dependencias nuevas),
   `LayerArchitectureTest` (reglas sin cambios — AC-023),
   `JwtService`/`JwtAuthenticationFilter`/`AuthenticatedUser`/`JwtTokenFactory`
@@ -99,7 +111,8 @@ Domain (Cuenta.debitar/acreditar, Movimiento, CBU, Money,   domain
 Persistence (CuentaRepositoryAdapter → CuentaJpaEntity@Version,
              MovimientoRepositoryAdapter → MovimientoJpaEntity)  infrastructure.adapter.persistence
         ↓
-PostgreSQL 16 (Flyway V1+V2+V3, cuentas/movimientos)         db
+PostgreSQL 16 (Flyway: V1+V2 de SPEC-001/003, V3 cuentas de SPEC-002,
+             V4 movimientos de SPEC-004)                          db
 ```
 
 **Flujo concreto de la transferencia (main flow de la spec, §6):**
@@ -182,30 +195,41 @@ que el `@Transactional` que garantiza FR-002 vive en `TransferenciaService`
 
 ### 5.3 Dominio — `domain`
 
-- `model/Cuenta` — agregado raíz (id, clienteId, CBU cbu, TipoCuenta tipo,
-  Money saldo, Moneda moneda, EstadoCuenta estado, Instant createdAt, Long
-  version). Métodos de dominio: `debitar(Money)` → `SaldoInsuficienteException`
-  si monto > saldo (BR-001); `acreditar(Money)`; factory estática `crear(...)`
-  (saldo 0, ACTIVA, version 0 — A-001, §8.2).
-- `model/Movimiento` — entidad (id, cuentaId, TipoMovimiento tipo, Money monto,
-  Instant fecha, Long cuentaContraparteId nullable) + factory `crear(...)`.
-- `model/TipoCuenta` { `CAJA_AHORRO`, `CUENTA_CORRIENTE` }, `model/EstadoCuenta`
-  { `ACTIVA`, `BLOQUEADA` }, `model/TipoMovimiento` { `DEPOSITO`, `RETIRO`,
-  `TRANSFERENCIA_ENTRANTE`, `TRANSFERENCIA_SALIENTE` } — enums planos
-  (almacenados como String, convención de SPEC-001/003).
-- `vo/CBU` — record que valida en el constructor: exactamente 22 dígitos
-  (formato real del CBU argentino; ver §8.2 y nota sobre el ejemplo de la spec
-  en §12). Lanza `CbuInvalidoException`.
-- `vo/Money` — record `(BigDecimal monto, Currency moneda)` inmutable;
-  constructor valida monto ≥ 0 y escala ≤ 2 (BR-003 parcial); operaciones
-  `sumar`/`restar` con `MathContext.DECIMAL128` (sin `double` —
-  `ARCHITECTURE.md` §6); comparaciones `esMayorQue`, `esMayorOIgualQue`,
-  `esCero`; factory `static Money ars(BigDecimal)`.
-- `vo/Moneda` — enum { `ARS` } con `Currency currency()` (única moneda del MVP;
-  BR-007).
-- `port/CuentaRepository` — `save`, `findById`, `findByCbu`, `findByClienteId`
-  y `montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate dia)` →
-  `Money` (BR-004, §8.10).
+- `model/Cuenta` — agregado raíz **de SPEC-002** (id, clienteId, CBU cbu,
+  TipoCuenta tipo, Money saldo, Moneda moneda, EstadoCuenta estado, Instant
+  createdAt, Long version; constructor público de reconstrucción, `bloquear()`
+  y guarda privada `verificarActiva()` — BR-003/A-001; creación centralizada en
+  `CuentaFactory`, sin factory estática). **Extendido por SPEC-004 (ADR-007):**
+  el campo `saldo` deja de ser `final`; nuevos métodos de dominio
+  `debitar(Money)` (invoca primero `verificarActiva()` — BR-002/ERR-003; si
+  monto > saldo → `SaldoInsuficienteException` — BR-001) y `acreditar(Money)`
+  (invoca primero `verificarActiva()`).
+- `model/Movimiento` — entidad **nueva** (id, cuentaId, TipoMovimiento tipo,
+  Money monto, Instant fecha, Long cuentaContraparteId nullable) + factory
+  `crear(...)`.
+- `model/TipoCuenta` { `CAJA_AHORRO`, `CUENTA_CORRIENTE` } y
+  `model/EstadoCuenta` { `ACTIVA`, `BLOQUEADA` } — enums de SPEC-002, sin
+  cambios; `model/TipoMovimiento` { `DEPOSITO`, `RETIRO`,
+  `TRANSFERENCIA_ENTRANTE`, `TRANSFERENCIA_SALIENTE` } — nuevo de SPEC-004.
+  Enums planos (almacenados como String, convención de SPEC-001/003).
+- `vo/CBU` — record de SPEC-002 que valida en el constructor: exactamente 22
+  dígitos (formato real del CBU argentino; ver §8.2 y nota sobre el ejemplo de
+  la spec en §12). Lanza `CbuInvalidoException`.
+- `vo/Money` — record `(BigDecimal monto, Moneda moneda)` **de SPEC-002**
+  (valida monto ≥ 0 → `MoneyInvalidoException`; `Money.cero(Moneda)`).
+  **Agregado por SPEC-004 (ADR-007):** operaciones `sumar`/`restar` con
+  `MathContext.DECIMAL128` (sin `double` — `ARCHITECTURE.md` §6),
+  comparaciones `esMayorQue`, `esMayorOIgualQue`, `esCero` (por `compareTo`) y
+  factory `static Money ars(BigDecimal)` (construye `Moneda("ARS")`). La escala
+  ≤ 2 del monto (BR-003) la verifica el validador (§8.4), no el VO.
+- `vo/Moneda` — record `(String codigo)` **de SPEC-002** (valida `^[A-Z]{3}$`
+  → `MonedaInvalidaException`; decisión "record con String, no enum" — SPEC-002
+  §13). BR-007 (misma moneda) se evalúa por igualdad de `Money.moneda()`
+  (código ISO 4217 alpha-3; ADR-007). MVP: solo ARS.
+- `port/CuentaRepository` — **de SPEC-002** (`save`, `findById`, `findByCbu`,
+  `findByClienteId`, `findAll`, `existsByCbu`); SPEC-004 **agrega**
+  `montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate dia)` →
+  `Money` (BR-004, §8.10, ADR-007).
 - `port/MovimientoRepository` — `save`, `findByCuentaIdOrderByFechaDesc`
   (FR-005). **Puerto separado** (decisión en §8.2/§13).
 - `port/TransferenciaEventPublisher` — `void publicar(TransferenciaRealizada
@@ -213,30 +237,35 @@ que el `@Transactional` que garantiza FR-002 vive en `TransferenciaService`
   depender de infraestructura — mismo patrón que `TokenEmisor`/`PasswordHasher`).
 - `event/TransferenciaRealizada` — `record (Money monto, CBU cbuOrigen, CBU
   cbuDestino, Instant fechaHora, Long idMovimientoSaliente)` (FR-004).
-- `exception/*` — nuevas: `SaldoInsuficienteException` (ERR-001 → 422),
-  `CuentaNoEncontradaException` (ERR-002 → 404), `CuentaBloqueadaException`
-  (ERR-003 → 422), `LimiteDiarioExcedidoException` (ERR-007 → 422),
+- `exception/*` — **nuevas de SPEC-004:** `SaldoInsuficienteException`
+  (ERR-001 → 422), `LimiteDiarioExcedidoException` (ERR-007 → 422),
   `AutoTransferenciaException` (ERR-008 → 422), `MonedaIncompatibleException`
-  (ERR-009 → 422), `CbuInvalidoException` (defensiva, → 400 con campo
-  `cbuDestino` — ver §8.6). Se reutilizan `DatosInvalidosException` (ERR-004
-  monto, 400) y `AccesoDenegadoException` (ERR-006, 403).
+  (ERR-009 → 422). **Reutilizadas de SPEC-002:** `CuentaNoEncontradaException`
+  (ERR-002 → 404), `CuentaBloqueadaException` (ERR-003 → 422; la lanza la
+  guarda `verificarActiva()`), `CbuInvalidoException` (defensiva del VO `CBU`;
+  ver §8.6). Se reutilizan además `DatosInvalidosException` (ERR-004 monto y
+  cbuDestino, 400) y `AccesoDenegadoException` (ERR-006, 403).
 
 ### 5.4 Persistencia — `infrastructure.adapter.persistence`
 
-- `CuentaJpaEntity` (`@Entity @Table(name = "cuentas")`) con `@Version Long
-  version` (BR-006) — ver §6.1/§8.8 para los detalles de `ddl-auto: validate`.
-- `CuentaJpaRepository extends JpaRepository<CuentaJpaEntity, Long>`:
-  `Optional<CuentaJpaEntity> findByCbu(String)`,
-  `List<CuentaJpaEntity> findByClienteId(Long)`.
+- `CuentaJpaEntity` — **ya existe (SPEC-002)**: `@Entity @Table(name =
+  "cuentas")` con `@Version Long version` (BR-006) — sin cambios en SPEC-004
+  (ver §6.1/§8.8 para los detalles de `ddl-auto: validate`).
+- `CuentaJpaRepository extends JpaRepository<CuentaJpaEntity, Long>` — **ya
+  existe (SPEC-002)** (`findByCbu`, `findAllByOrderByIdAsc`,
+  `findByClienteIdOrderByIdAsc`, `existsByCbu`); SPEC-004 usa `findById`/
+  `findByCbu` — sin cambios.
 - `MovimientoJpaEntity` (`@Entity @Table(name = "movimientos")`).
 - `MovimientoJpaRepository extends JpaRepository<MovimientoJpaEntity, Long>`:
   `List<MovimientoJpaEntity> findByCuentaIdOrderByFechaDesc(Long)` y la
   `@Query` JPQL de agregación del límite diario (§8.10).
-- `CuentaRepositoryAdapter implements CuentaRepository` (`@Component`):
-  mapeo explícito (enums como String, `CBU`/`Money`/`Moneda` como String/
-  BigDecimal, **version mapeada en ambos sentidos** — crítica para el lock
-  optimista, §8.8). Contiene además `MovimientoJpaRepository` para implementar
-  la agregación del límite diario (dato vive en `movimientos`; ver §8.10).
+- `CuentaRepositoryAdapter implements CuentaRepository` (`@Component`) — **ya
+  existe (SPEC-002)**: mapeo explícito (enums como String, `CBU`/`Money`/
+  `Moneda` como String/BigDecimal, **version mapeada en ambos sentidos** —
+  crítica para el lock optimista, §8.8). **Modificado por SPEC-004 (ADR-007):**
+  inyecta además `MovimientoJpaRepository` para implementar
+  `montoTotalTransferenciasSalientesDelDia` (dato vive en `movimientos`; ver
+  §8.10).
 - `MovimientoRepositoryAdapter implements MovimientoRepository` (`@Component`).
 
 ### 5.5 Seguridad — `infrastructure.security`
@@ -269,32 +298,23 @@ outbox en el MVP — la auditoría/notificación queda para una evolución).
 
 ### 6.1 Migración Flyway
 
-Nuevo archivo `backend/src/main/resources/db/migration/V3__cuentas_y_movimientos.sql`:
+La tabla `cuentas` **ya existe**: la crea la migración de SPEC-002
+`backend/src/main/resources/db/migration/V3__cuentas.sql` (con
+`version BIGINT NOT NULL DEFAULT 0` para el `@Version` y `uq_cuentas_cbu`).
+SPEC-004 **no la toca** (ADR-007). SPEC-004 agrega un único archivo:
+
+Nuevo archivo `backend/src/main/resources/db/migration/V4__movimientos.sql`:
 
 ```sql
--- V3__cuentas_y_movimientos.sql
--- Agregado Cuenta mínimo (SPEC-004, A-001) + Movimiento. Compatible con
--- ddl-auto: validate (lecciones de V1/V2):
---   * Instant -> TIMESTAMP WITH TIME ZONE (lección V1/TIMESTAMPTZ: Hibernate 6
---     mapea Instant a "timestamp(6) with time zone"; un TIMESTAMP simple
---     fallaría la validación).
---   * BIGSERIAL <-> Long @Id, BIGINT <-> Long, DECIMAL(19,2) <-> BigDecimal,
---     VARCHAR(n) <-> @Column(length=n). Hibernate validate no valida
---     constraints UNIQUE/FK (los define Flyway, como en V1/V2).
-
-CREATE TABLE cuentas (
-    id          BIGSERIAL PRIMARY KEY,
-    cliente_id  BIGINT           NOT NULL REFERENCES clientes(id),
-    cbu         VARCHAR(22)      NOT NULL,
-    tipo        VARCHAR(15)      NOT NULL,   -- CAJA_AHORRO (11) | CUENTA_CORRIENTE (15)
-    saldo       DECIMAL(19,2)    NOT NULL,
-    moneda      VARCHAR(3)       NOT NULL,   -- ARS
-    estado      VARCHAR(9)       NOT NULL,   -- ACTIVA (6) | BLOQUEADA (9)
-    created_at  TIMESTAMP WITH TIME ZONE NOT NULL,
-    version     BIGINT           NOT NULL DEFAULT 0   -- @Version (BR-006)
-);
-
-ALTER TABLE cuentas ADD CONSTRAINT uq_cuentas_cbu UNIQUE (cbu);
+-- V4__movimientos.sql
+-- Entidad Movimiento (SPEC-004, FR-003). La tabla cuentas proviene de la
+-- migración V3__cuentas.sql de SPEC-002 (version ya incluida). Compatible con
+-- ddl-auto: validate (lecciones de V1/V2/V3):
+--   * Instant -> TIMESTAMP WITH TIME ZONE (Hibernate 6 mapea Instant a
+--     "timestamp(6) with time zone"; un TIMESTAMP simple fallaría).
+--   * BIGSERIAL <-> Long @Id, BIGINT <-> Long, DECIMAL(19,2)/NUMERIC(19,2)
+--     <-> BigDecimal, VARCHAR(n) <-> @Column(length=n). Hibernate validate no
+--     valida constraints UNIQUE/FK (los define Flyway, como en V1/V2/V3).
 
 CREATE TABLE movimientos (
     id                     BIGSERIAL PRIMARY KEY,
@@ -310,22 +330,25 @@ CREATE INDEX idx_movimientos_cuenta_fecha ON movimientos (cuenta_id, fecha);
 
 Notas:
 
-- `cbu VARCHAR(22)` ↔ `@Column(length = 22)`: formato CBU de 22 dígitos
-  (ver §8.2 y la discrepancia con el ejemplo de la spec en §12).
-- `version BIGINT NOT NULL DEFAULT 0` ↔ `@Version @Column(nullable = false)
-  Long version`: Hibernate gestiona el valor (0 en insert, +1 por UPDATE); la
-  columna existe en el esquema y `validate` verifica tipo/ausencia de null
-  (misma estrategia de consistencia que V1/V2).
-- `cliente_id` FK → `clientes(id)` y `cuenta_contraparte_id` FK →
-  `cuentas(id)`: las FK las define Flyway (Hibernate no las valida). Sin
-  relación JPA mapeada (`Long` plano, convención de SPEC-001/003 — sin
-  `AttributeConverter`).
+- La columna `version` de `cuentas` (`BIGINT NOT NULL DEFAULT 0` ↔ `@Version
+  @Column(nullable = false) Long version`) ya existe desde SPEC-002; SPEC-004
+  solo la consume (mapeo en ambos sentidos en `CuentaRepositoryAdapter` —
+  §8.8). Hibernate gestiona el valor (0 en insert, +1 por UPDATE); `validate`
+  verifica tipo/ausencia de null.
+- `cuenta_id` FK → `cuentas(id)` y `cuenta_contraparte_id` FK → `cuentas(id)`:
+  las FK las define Flyway (Hibernate no las valida). Sin relación JPA mapeada
+  (`Long` plano, convención de SPEC-001/003 — sin `AttributeConverter`).
 - Índice `(cuenta_id, fecha)`: sirve al historial (FR-005) y al rango del día
   del límite diario (BR-004, §8.10).
+- **Ojo del developer:** el borrador previo `V3__cuentas_y_movimientos.sql`
+  (WIP pre-reconciliación) debe **eliminarse**: duplicaría la tabla `cuentas` y
+  colisionaría con la `V3__cuentas.sql` de SPEC-002 (Flyway falla con dos
+  migraciones del mismo número).
 
 ### 6.2 Entidades de dominio
 
-`Cuenta` y `Movimiento` según §5.3. `Cuenta` lleva `version` como `Long` en el
+`Cuenta` (agregado de SPEC-002, extendido con `debitar`/`acreditar` — ADR-007)
+y `Movimiento` (nuevo) según §5.3. `Cuenta` lleva `version` como `Long` en el
 modelo de dominio (se mapea en ambos sentidos en el adapter — sin esto el lock
 optimista no funciona, §8.8).
 
@@ -360,25 +383,25 @@ Packages bajo `backend/src/main/java/com/banco` salvo indicación.
 
 | Clase | Miembros clave | Propósito |
 | --- | --- | --- |
-| `model/TipoCuenta` | `enum TipoCuenta { CAJA_AHORRO, CUENTA_CORRIENTE }` | Tipo de cuenta (A-001). |
-| `model/EstadoCuenta` | `enum EstadoCuenta { ACTIVA, BLOQUEADA }` | Estado (BR-002). |
-| `model/TipoMovimiento` | `enum TipoMovimiento { DEPOSITO, RETIRO, TRANSFERENCIA_ENTRANTE, TRANSFERENCIA_SALIENTE }` | Tipo de operación (ARCHITECTURE.md §4). |
-| `vo/Moneda` | `enum Moneda { ARS }` + `Currency currency()` (`Currency.getInstance("ARS")`) | Moneda del MVP (BR-007). |
-| `vo/CBU` | `record CBU(String valor)`; constructor compacto valida `^[0-9]{22}$` → `CbuInvalidoException` | VO inmutable, único (BR de SPEC-002 §5.1; formato definido en §8.2). |
-| `vo/Money` | `record Money(BigDecimal monto, Currency moneda)`; constructor compacto valida monto ≠ null, moneda ≠ null, `monto.signum() >= 0`, `monto.scale() <= 2` → `DatosInvalidosException("monto", ...)`; `static Money ars(BigDecimal)`; `Money sumar(Money)` / `Money restar(Money)` (con `MathContext.DECIMAL128`); `boolean esMayorQue(Money)`, `esMayorOIgualQue(Money)`, `esCero()` | VO monetario (ARCHITECTURE.md §4/§6; BR-003 parcial, BR-007). |
-| `model/Cuenta` | constructor público `Cuenta(Long id, Long clienteId, CBU cbu, TipoCuenta tipo, Money saldo, Moneda moneda, EstadoCuenta estado, Instant createdAt, Long version)`; factory `static Cuenta crear(Long clienteId, TipoCuenta tipo, CBU cbu, Moneda moneda, Instant createdAt)` (id null, saldo 0, ACTIVA, version 0); `void debitar(Money monto)` (si `monto.esMayorQue(saldo)` → `SaldoInsuficienteException`; `saldo = saldo.restar(monto)`); `void acreditar(Money monto)` (`saldo = saldo.sumar(monto)`); getters `getId/getClienteId/getCbu/getTipo/getSaldo/getMoneda/getEstado/getCreatedAt/getVersion` | Agregado raíz (A-001). Invariante de saldo ≥ 0 (BR-001). |
+| `model/TipoCuenta` | `enum TipoCuenta { CAJA_AHORRO, CUENTA_CORRIENTE }` | Tipo de cuenta — **ya existe (SPEC-002)**, sin cambios. |
+| `model/EstadoCuenta` | `enum EstadoCuenta { ACTIVA, BLOQUEADA }` | Estado (BR-002) — **ya existe (SPEC-002)**, sin cambios. |
+| `model/TipoMovimiento` | `enum TipoMovimiento { DEPOSITO, RETIRO, TRANSFERENCIA_ENTRANTE, TRANSFERENCIA_SALIENTE }` | Tipo de operación (ARCHITECTURE.md §4) — **nuevo de SPEC-004**. |
+| `vo/Moneda` | `record Moneda(String codigo)` — **ya existe (SPEC-002)**; valida `^[A-Z]{3}$` → `MonedaInvalidaException` (400 defensivo); decisión "record con String, no enum" (SPEC-002 §13) | VO de moneda (ISO 4217 alpha-3). BR-007 se evalúa por igualdad de código (ADR-007); MVP: solo ARS. |
+| `vo/CBU` | `record CBU(String valor)`; constructor compacto valida `^[0-9]{22}$` → `CbuInvalidoException` — **ya existe (SPEC-002)** | VO inmutable, único (BR de SPEC-002 §5.1; formato definido en §8.2). |
+| `vo/Money` | `record Money(BigDecimal monto, Moneda moneda)` — **ya existe (SPEC-002)**: valida monto ≠ null, moneda ≠ null y `monto.signum() >= 0` → `MoneyInvalidoException`; `static Money cero(Moneda)`. **Agregadas por SPEC-004 (ADR-007):** `static Money ars(BigDecimal)` (`new Money(monto, new Moneda("ARS"))`); `Money sumar(Money)` / `Money restar(Money)` (con `MathContext.DECIMAL128`); `boolean esMayorQue(Money)`, `esMayorOIgualQue(Money)`, `esCero()` (comparaciones por `compareTo`; sin `double`) | VO monetario (ARCHITECTURE.md §4/§6; BR-001, BR-007). La escala ≤ 2 del monto de transferencia (BR-003) la verifica el `TransferValidator` (§8.4), no el VO. |
+| `model/Cuenta` | constructor público `Cuenta(Long id, Long clienteId, CBU cbu, TipoCuenta tipo, Money saldo, Moneda moneda, EstadoCuenta estado, Instant createdAt, Long version)`, `bloquear()`/guarda `verificarActiva()` y getters `getId/getClienteId/getCbu/getTipo/getSaldo/getMoneda/getEstado/getCreatedAt/getVersion` — **ya existen (SPEC-002)**; la creación la centraliza `factory/CuentaFactory` (SPEC-002; no hay factory estática en `Cuenta`). **Modificado por SPEC-004 (ADR-007):** `saldo` deja de ser `final`; nuevos `void debitar(Money monto)` (invoca `verificarActiva()` — BR-002/ERR-003; si `monto.esMayorQue(saldo)` → `SaldoInsuficienteException` — BR-001; `saldo = saldo.restar(monto)`) y `void acreditar(Money monto)` (invoca `verificarActiva()`; `saldo = saldo.sumar(monto)`) | Agregado raíz. Invariante de saldo ≥ 0 (BR-001). |
 | `model/Movimiento` | constructor público `Movimiento(Long id, Long cuentaId, TipoMovimiento tipo, Money monto, Instant fecha, Long cuentaContraparteId)`; factory `static Movimiento crear(Long cuentaId, TipoMovimiento tipo, Money monto, Instant fecha, Long cuentaContraparteId)` (id null); getters | Entidad que registra cada operación (FR-003). |
-| `port/CuentaRepository` | `Cuenta save(Cuenta)`, `Optional<Cuenta> findById(Long)`, `Optional<Cuenta> findByCbu(CBU)`, `List<Cuenta> findByClienteId(Long)`, `Money montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate dia)` | Puerto (dominio puro). La agregación del límite diario vive aquí por mandato de la spec §10 (§8.10). |
+| `port/CuentaRepository` | **ya existe (SPEC-002):** `Cuenta save(Cuenta)`, `Optional<Cuenta> findById(Long)`, `Optional<Cuenta> findByCbu(CBU)`, `List<Cuenta> findByClienteId(Long)`, `List<Cuenta> findAll()`, `boolean existsByCbu(CBU)`. **Agregado por SPEC-004:** `Money montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate dia)` | Puerto (dominio puro). La agregación del límite diario vive aquí por mandato de la spec §10 (§8.10; ADR-007). |
 | `port/MovimientoRepository` | `Movimiento save(Movimiento)`, `List<Movimiento> findByCuentaIdOrderByFechaDesc(Long cuentaId)` | Puerto del historial (FR-005; §8.2). |
 | `port/TransferenciaEventPublisher` | `void publicar(TransferenciaRealizada evento)` | Abstracción de la emisión del evento (FR-004). Una implementación (no-op) en infra. |
 | `event/TransferenciaRealizada` | `record TransferenciaRealizada(Money monto, CBU cbuOrigen, CBU cbuDestino, Instant fechaHora, Long idMovimientoSaliente)` | Evento de dominio (FR-004; A-007: id = id del saliente). |
 | `exception/SaldoInsuficienteException` | `RuntimeException`; mensaje "Saldo insuficiente" | ERR-001 → 422. |
-| `exception/CuentaNoEncontradaException` | `RuntimeException`; mensaje "Cuenta no encontrada" | ERR-002 → 404. |
-| `exception/CuentaBloqueadaException` | `RuntimeException`; mensaje "La cuenta está bloqueada" | ERR-003 → 422. |
+| `exception/CuentaNoEncontradaException` | `RuntimeException`; mensaje "Cuenta no encontrada" — **ya existe (SPEC-002)**, se reutiliza | ERR-002 → 404. |
+| `exception/CuentaBloqueadaException` | `RuntimeException`; mensaje "La cuenta está bloqueada" — **ya existe (SPEC-002)**, se reutiliza (la lanzan la guarda `verificarActiva()` y los pasos 3/6 del validador) | ERR-003 → 422. |
 | `exception/LimiteDiarioExcedidoException` | `RuntimeException`; mensaje "Límite diario de transferencias excedido" | ERR-007 → 422. |
 | `exception/AutoTransferenciaException` | `RuntimeException`; mensaje "No se puede transferir a la misma cuenta" | ERR-008 → 422. |
 | `exception/MonedaIncompatibleException` | `RuntimeException`; mensaje "Las monedas de las cuentas son incompatibles" | ERR-009 → 422. |
-| `exception/CbuInvalidoException` | `RuntimeException`; mensaje "El CBU debe contener exactamente 22 dígitos" | Defensiva (VO `CBU`); el handler la mapea a 400 con campo `cbuDestino` (misma semántica que `DniInvalidoException`). |
+| `exception/CbuInvalidoException` | `RuntimeException`; mensaje "El CBU debe contener exactamente 22 dígitos numéricos" — **ya existe (SPEC-002)**; el handler ya la mapea a `400 CBU_INVALIDO` con campo `cbu` (SPEC-002 §8.5, para `GET /cbu/{cbu}`) | Defensiva (VO `CBU`); en el flujo de transferencia el validador la envuelve en `DatosInvalidosException("cbuDestino", ...)` (§8.4 paso 4) → 400 `DATOS_INVALIDOS` (ver §8.6). |
 
 **Application (`com.banco.application.*`)** — Java puro, sin imports de Spring.
 
@@ -397,9 +420,9 @@ Packages bajo `backend/src/main/java/com/banco` salvo indicación.
 
 | Clase | Miembros clave | Propósito |
 | --- | --- | --- |
-| `adapter/persistence/CuentaJpaEntity` | `@Entity @Table(name="cuentas")`; `@Id @GeneratedValue(IDENTITY) Long id`; `@Column(name="cliente_id", nullable=false) Long clienteId`; `@Column(nullable=false, length=22) String cbu`; `@Column(nullable=false, length=15) String tipo`; `@Column(nullable=false) BigDecimal saldo`; `@Column(nullable=false, length=3) String moneda`; `@Column(nullable=false, length=9) String estado`; `@Column(name="created_at", nullable=false) Instant createdAt`; `@Version @Column(nullable=false) Long version`; getters/setters | Proyección JPA (sin lógica de negocio). |
-| `adapter/persistence/CuentaJpaRepository` | `interface ... extends JpaRepository<CuentaJpaEntity, Long>`; `Optional<CuentaJpaEntity> findByCbu(String)`, `List<CuentaJpaEntity> findByClienteId(Long)` | Acceso Spring Data. |
-| `adapter/persistence/CuentaRepositoryAdapter` | `@Component implements CuentaRepository`; `toEntity`/`toDomain` (enums como String, `CBU`/`Money`/`Moneda` mapeados explícitamente, **version en ambos sentidos**); delega la agregación del día en `MovimientoJpaRepository` | Implementa el puerto. |
+| `adapter/persistence/CuentaJpaEntity` | **ya existe (SPEC-002)** — `@Entity @Table(name="cuentas")`; `@Id @GeneratedValue(IDENTITY) Long id`; `@Column(name="cliente_id", nullable=false) Long clienteId`; `@Column(nullable=false, length=22) String cbu`; `@Column(nullable=false, length=20) String tipo`; `@Column(nullable=false, precision=19, scale=2) BigDecimal saldo`; `@Column(nullable=false, length=3) String moneda`; `@Column(nullable=false, length=20) String estado`; `@Version @Column(nullable=false) Long version`; `@Column(name="created_at", nullable=false) Instant createdAt`; getters/setters — sin cambios en SPEC-004 | Proyección JPA (sin lógica de negocio). |
+| `adapter/persistence/CuentaJpaRepository` | **ya existe (SPEC-002)** — `interface ... extends JpaRepository<CuentaJpaEntity, Long>`; `findByCbu`, `findAllByOrderByIdAsc`, `findByClienteIdOrderByIdAsc`, `existsByCbu` — sin cambios (SPEC-004 usa `findById`/`findByCbu`) | Acceso Spring Data. |
+| `adapter/persistence/CuentaRepositoryAdapter` | **ya existe (SPEC-002)** — `@Component implements CuentaRepository`; `toEntity`/`toDomain` (enums como String, `CBU`/`Money`/`Moneda` mapeados explícitamente, **version en ambos sentidos**). **Modificado por SPEC-004 (ADR-007):** inyecta `MovimientoJpaRepository` y delega la agregación del día en él (§8.10) | Implementa el puerto. |
 | `adapter/persistence/MovimientoJpaEntity` | `@Entity @Table(name="movimientos")`; `@Id IDENTITY Long id`; `@Column(name="cuenta_id", nullable=false) Long cuentaId`; `@Column(nullable=false, length=22) String tipo`; `@Column(nullable=false) BigDecimal monto`; `@Column(nullable=false) Instant fecha`; `@Column(name="cuenta_contraparte_id") Long cuentaContraparteId` (nullable); getters/setters | Proyección JPA. |
 | `adapter/persistence/MovimientoJpaRepository` | `interface ... extends JpaRepository<MovimientoJpaEntity, Long>`; `List<MovimientoJpaEntity> findByCuentaIdOrderByFechaDesc(Long)`; `@Query` de agregación (§8.10) | Acceso Spring Data. |
 | `adapter/persistence/MovimientoRepositoryAdapter` | `@Component implements MovimientoRepository`; `toEntity`/`toDomain` | Implementa el puerto. |
@@ -415,13 +438,13 @@ Packages bajo `backend/src/main/java/com/banco` salvo indicación.
 
 | Archivo | Propósito |
 | --- | --- |
-| `backend/src/main/resources/db/migration/V3__cuentas_y_movimientos.sql` | Migración (§6.1). |
+| `backend/src/main/resources/db/migration/V4__movimientos.sql` | Migración (§6.1; `cuentas` ya existe en `V3__cuentas.sql` de SPEC-002). |
 
 **Tests (`backend/src/test/...`) — NUEVOS**
 
 | Archivo | Cubre |
 | --- | --- |
-| `java/com/banco/support/CuentaTestHelper.java` | Helper de creación de cuentas vía `CuentaRepository` (A-003): `Cuenta.crear(...)` + `acreditar` para fondear; CBU de 22 dígitos generado secuencialmente (ver §10). |
+| `java/com/banco/support/CuentaTestHelper.java` | Helper de creación de cuentas vía `CuentaRepository` (A-003): `CuentaFactory.crear(...)` (SPEC-002) + `acreditar` para fondear; CBU de 22 dígitos generado secuencialmente (ver §10). |
 | `java/com/banco/domain/CBUTest.java`, `domain/MoneyTest.java`, `domain/CuentaTest.java`, `domain/MovimientoTest.java` | VOs y agregado (ver §10). |
 | `java/com/banco/application/TransferValidatorTest.java`, `application/TransferirUseCaseTest.java`, `application/ObtenerMovimientosUseCaseTest.java` | Validación y use cases (ver §10). |
 | `java/com/banco/integration/TransferenciaApiIntegrationTest.java` | Endpoint de transferencias + autorización + concurrencia (AC-001..AC-015, AC-012). |
@@ -431,16 +454,23 @@ Packages bajo `backend/src/main/java/com/banco` salvo indicación.
 
 | Archivo | Cambio |
 | --- | --- |
+| `domain/vo/Money.java` (SPEC-002) | Agrega `sumar`/`restar`/`esMayorQue`/`esMayorOIgualQue`/`esCero` y la factory `ars` (ADR-007). |
+| `domain/model/Cuenta.java` (SPEC-002) | `saldo` deja de ser `final`; agrega `debitar`/`acreditar` (ambos con la guarda `verificarActiva()`) (ADR-007). |
+| `domain/port/CuentaRepository.java` (SPEC-002) | Agrega `montoTotalTransferenciasSalientesDelDia` (§8.10). |
+| `infrastructure/adapter/persistence/CuentaRepositoryAdapter.java` (SPEC-002) | Inyecta `MovimientoJpaRepository` y delega la agregación del límite diario (§8.10, ADR-007). |
 | `infrastructure/security/SecurityConfig.java` | Dos matchers nuevos (§8.5). Resto intacto. |
-| `infrastructure/adapter/web/GlobalExceptionHandler.java` | Ocho mapeos nuevos (§8.6). |
+| `infrastructure/adapter/web/GlobalExceptionHandler.java` | Cinco mapeos nuevos (§8.6); `CuentaNoEncontrada`/`CuentaBloqueada`/`CbuInvalido` ya se mapean desde SPEC-002. |
 | `backend/src/main/resources/application.yml` | `banco.negocio.limite-diario-transferencias: 200000` (§8.7). |
 | `backend/src/test/resources/application-test.yml` | Ídem (§8.7). |
+| `backend/src/main/resources/db/migration/V3__cuentas_y_movimientos.sql` | **Eliminar** (WIP pre-reconciliación; duplica `V3__cuentas.sql` de SPEC-002 — ver §6.1, ADR-007). |
 
 **Sin cambios:** `pom.xml` (ver §9), `BaseIntegrationTest`, `JwtTokenFactory`,
 `JwtAuthenticationFilter`, `AuthenticatedUser`, `JwtService`, controllers
 existentes, `ClienteBeansConfig`/`AuthBeansConfig`, `LayerArchitectureTest`
 (las clases nuevas deben cumplir las reglas existentes — AC-023),
-`V1__schema_inicial.sql`, `V2__usuarios.sql`.
+`V1__schema_inicial.sql`, `V2__usuarios.sql`, `V3__cuentas.sql` (SPEC-002),
+`CuentaFactory`, `CuentaJpaEntity`/`CuentaJpaRepository` (SPEC-002), y los VOs
+`CBU`/`Moneda` (SPEC-002).
 
 ### 8.2 Domain design (resumen ejecutivo)
 
@@ -450,16 +480,28 @@ existentes, `ClienteBeansConfig`/`AuthBeansConfig`, `LayerArchitectureTest`
   (`"00000031000000000001"`) tiene 20 dígitos — ver §12. Los tests y la
   documentación usan CBUs de 22 dígitos (p. ej. `"00000031" + 14 dígitos`).
 - **`Money` como VO obligatorio** (no `BigDecimal` pelado): `ARCHITECTURE.md`
-  §4/§6 lo exige y BR-007 (moneda compatible) necesita la `Currency`.
-  Constructor estricto: monto ≥ 0 y escala ≤ 2 → `DatosInvalidosException("monto")`
-  (BR-003 parcial a nivel de VO; el `> 0` lo exige el validador, ver §8.4).
-  Operaciones con `MathContext.DECIMAL128` (sin `double`).
-- **Factory de `Cuenta`: método estático `Cuenta.crear(...)`, no clase
-  `CuentaFactory`.** Convención del repo (`Cliente.crear`, `Usuario.crear`).
-  En el MVP no existe comportamiento por tipo (comisiones fuera de alcance;
-  "Strategy preparado" es evolución), así que el parámetro `tipo` basta.
-  Cuando SPEC-002/005 introduzcan reglas por tipo, se extrae `CuentaFactory`
-  (Strategy) sin cambiar los consumidores. Decisión registrada en §13.
+  §4/§6 lo exige y BR-007 (moneda compatible) se evalúa por igualdad de
+  `Money.moneda()` (código ISO 4217 alpha-3 — ADR-007). El VO **ya existe desde
+  SPEC-002** (`record Money(BigDecimal monto, Moneda moneda)` con validación
+  `monto ≥ 0` → `MoneyInvalidoException`); SPEC-004 le agrega las operaciones de
+  transferencia (`sumar`/`restar` con `MathContext.DECIMAL128` sin `double`,
+  `esMayorQue`/`esMayorOIgualQue`/`esCero` por `compareTo`, factory `ars`). La
+  escala ≤ 2 y el `> 0` del monto (BR-003) los exige el validador (paso 7 de
+  §8.4), no el VO (SPEC-002 no valida escala).
+- **`Cuenta` se extiende, no se reescribe (ADR-007):** los métodos de dinero
+  `debitar`/`acreditar` invocan primero la guarda existente `verificarActiva()`
+  (BR-002/ERR-003) y mutan el saldo (el campo deja de ser `final`); el
+  invariante de saldo ≥ 0 (BR-001) se re-verifica en `debitar` (doble barrera
+  con el paso 9 del validador). El constructor de reconstrucción, `bloquear()`,
+  `CuentaFactory` y el mapeo JPA (incluido `version` en ambos sentidos) quedan
+  como en SPEC-002.
+- **Factory de `Cuenta`: clase `CuentaFactory` con dispatch por `switch` (ya
+  existe — SPEC-002, BR-004).** SPEC-002 descartó el factory estático
+  `Cuenta.crear` (decisión documentada en SPEC-002 §13: AC-024 nombra "la
+  Factory" como unidad testeable y el constructor público de `Cuenta` queda
+  solo para reconstrucción). SPEC-004 consume `CuentaFactory` (tests,
+  `CuentaTestHelper`) y el constructor de reconstrucción sin cambios
+  (ADR-007).
 - **`Movimiento` como puerto separado (`MovimientoRepository`), no colgado del
   agregado `Cuenta`.** La spec llama a `Movimiento` "parte del agregado" y
   coloca la agregación del límite diario en `CuentaRepository`, pero el
@@ -561,13 +603,15 @@ TransferValidator.validar(DatosTransferencia datos) → TransferenciaValidada
   5. if (destino.getId().equals(origen.getId()))
         → AutoTransferenciaException                            // ERR-008 → 422 (BR-005)
   6. if (destino.getEstado() != ACTIVA) → CuentaBloqueadaException  // ERR-003 → 422
-  7. Money monto;
-     try { monto = Money.ars(datos.monto()); }                  // valida ≥ 0 y escala ≤ 2 (VO)
-     catch (DatosInvalidosException e) → re-lanza (400)
-     if (monto.esCero()) → DatosInvalidosException("monto", "El monto debe ser mayor a 0")
-                                                                 // ERR-004 → 400 (BR-003)
-  8. if (origen.getMoneda() != destino.getMoneda())
-        → MonedaIncompatibleException                           // ERR-009 → 422 (BR-007)
+  7. if (datos.monto() == null || datos.monto().signum() <= 0
+        || datos.monto().scale() > 2)
+        → DatosInvalidosException("monto", "El monto debe ser mayor a 0 y tener hasta 2 decimales")
+                                                                // ERR-004 → 400 (BR-003)
+     Money monto = Money.ars(datos.monto());                    // factory de SPEC-004 → Moneda("ARS");
+                                                                // el VO (SPEC-002) valida monto ≥ 0,
+                                                                // inalcanzable tras el chequeo anterior
+  8. if (!origen.getSaldo().moneda().equals(destino.getSaldo().moneda()))
+        → MonedaIncompatibleException                           // ERR-009 → 422 (BR-007; ADR-007)
   9. if (monto.esMayorQue(origen.getSaldo()))
         → SaldoInsuficienteException                            // ERR-001 → 422 (BR-001)
      // (debitar re-verifica el invariante — doble barrera)
@@ -585,6 +629,12 @@ Notas:
 - El chequeo 4 valida el formato del CBU ANTES de buscar (el VO `CBU` valida en
   el constructor): CBU malformado → 400 con campo `cbuDestino`; CBU bien
   formado inexistente → 404 (ERR-002).
+- Los pasos 7 y 8 usan las formas reconciliadas (ADR-007): `Money.ars(...)`
+  construye `Moneda("ARS")` y el VO de SPEC-002 solo valida `monto >= 0`
+  (`MoneyInvalidoException`, sin mapeo en el handler — §8.6), por eso el
+  chequeo de signo/escala (BR-003) ocurre ANTES de construir el `Money`; la
+  compatibilidad de moneda (BR-007) se evalúa por igualdad de `Money.moneda()`
+  (código ISO 4217 alpha-3).
 - `limiteDiario` es un `Money` inyectado por constructor (bean de
   `TransferenciaBeansConfig` desde `@Value`, §8.7) — `application` no lee
   propiedades de Spring.
@@ -622,25 +672,28 @@ authorizeHttpRequests:
 ### 8.6 GlobalExceptionHandler — mapeos nuevos
 
 Envelope `{ code, message, details? }` (omisión de null configurada). Tabla
-completa resultante (nuevas filas en **negrita**):
+completa resultante — **cinco filas nuevas de SPEC-004** en **negrita**
+(`SaldoInsuficiente`, `LimiteDiarioExcedido`, `AutoTransferencia`,
+`MonedaIncompatible` y `ObjectOptimisticLockingFailure`); `CuentaNoEncontrada`/
+`CuentaBloqueada`/`CbuInvalido` **ya se mapean desde SPEC-002** (sin cambios):
 
 | Excepción | HTTP | `code` | `details` |
 | --- | --- | --- | --- |
 | `DatosInvalidosException` | 400 | `DATOS_INVALIDOS` | `[{campo, mensaje}]` (ERR-004 monto, cbuDestino malformado, y los usos existentes) |
 | `DniInvalidoException` (defensivo) | 400 | `DATOS_INVALIDOS` | `[{campo:"dni", mensaje}]` (existente) |
-| **`CbuInvalidoException` (defensivo)** | **400** | **`DATOS_INVALIDOS`** | **`[{campo:"cbuDestino", mensaje}]`** |
+| `CbuInvalidoException` (defensivo) | 400 | `CBU_INVALIDO` | `[{campo:"cbu", mensaje}]` — **ya mapeada por SPEC-002** (§8.5) para `GET /cbu/{cbu}`; en el flujo de transferencia el validador la envuelve en `DatosInvalidosException("cbuDestino", ...)` (paso 4, §8.4) → 400 `DATOS_INVALIDOS` |
 | `HttpMessageNotReadableException` | 400 | `DATOS_INVALIDOS` | null (existente) |
 | `MethodArgumentTypeMismatchException` | 400 | `DATOS_INVALIDOS` | null (existente; cubre `{id}` no numérico) |
 | `CredencialesInvalidasException` | 401 | `NO_AUTENTICADO` | null (existente) |
 | `AccesoDenegadoException` | 403 | `ACCESO_DENEGADO` | null (ERR-006) |
 | `ClienteNoEncontradoException` | 404 | `CLIENTE_NO_ENCONTRADO` | null (existente) |
-| **`CuentaNoEncontradaException`** | **404** | **`CUENTA_NO_ENCONTRADA`** | **null (ERR-002)** |
+| `CuentaNoEncontradaException` | 404 | `CUENTA_NO_ENCONTRADA` | null (ERR-002) — **ya mapeada por SPEC-002**, sin cambios |
 | `ClienteDuplicadoException` | 409 | `CONFLICTO_UNICIDAD` | `[{campo, mensaje}]` (existente) |
 | `UsernameDuplicadoException` | 409 | `CONFLICTO_UNICIDAD` | `[{campo:"username", mensaje}]` (existente) |
 | **`ObjectOptimisticLockingFailureException`** | **409** | **`CONFLICTO_CONCURRENCIA`** | **null (ERR-005)** |
 | `DataIntegrityViolationException` (backstop race) | 409 | `CONFLICTO_UNICIDAD` | null (existente) |
 | **`SaldoInsuficienteException`** | **422** | **`SALDO_INSUFICIENTE`** | **null (ERR-001)** |
-| **`CuentaBloqueadaException`** | **422** | **`CUENTA_BLOQUEADA`** | **null (ERR-003)** |
+| `CuentaBloqueadaException` | 422 | `CUENTA_BLOQUEADA` | null (ERR-003) — **ya mapeada por SPEC-002**, sin cambios (la lanzan la guarda `verificarActiva()` y los pasos 3/6 del validador) |
 | **`LimiteDiarioExcedidoException`** | **422** | **`LIMITE_DIARIO_EXCEDIDO`** | **null (ERR-007)** |
 | **`AutoTransferenciaException`** | **422** | **`AUTO_TRANSFERENCIA`** | **null (ERR-008)** |
 | **`MonedaIncompatibleException`** | **422** | **`MONEDA_INCOMPATIBLE`** | **null (ERR-009)** |
@@ -652,6 +705,12 @@ completa resultante (nuevas filas en **negrita**):
   excepción → `409 CONFLICTO_CONCURRENCIA` con mensaje orientativo
   ("Conflicto de concurrencia: reintente la operación"). Sin reintento
   automático (A-004).
+- **`MoneyInvalidoException` (SPEC-002) sigue sin mapeo** (caería en el fallback
+  500): es un invariante interno del VO (`monto < 0` o null). En el flujo de
+  transferencia es **inalcanzable** porque el paso 7 del validador (§8.4)
+  pre-chequea signo y escala del monto antes de construir el `Money` (BR-003 →
+  400). Se documenta aquí para que no se agregue un mapeo especulativo (misma
+  decisión que SPEC-002 §8.5).
 - Los `401`/`403` de Spring Security los siguen escribiendo el entry point y
   el access-denied handler de `SecurityConfig` (sin cambios).
 
@@ -849,10 +908,10 @@ public Money montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate d
 | Clase | Cobertura | AC |
 | --- | --- | --- |
 | `domain/CBUTest` | 22 dígitos válido; null/vacío, letras, 21/23 dígitos → `CbuInvalidoException` | AC-021 |
-| `domain/MoneyTest` | constructor: null → excepción; negativo → `DatosInvalidosException("monto")`; escala 3 → excepción; escala 2 OK; `sumar`/`restar` correctos; `esMayorQue`/`esMayorOIgualQue`/`esCero`; operaciones sin `double` | AC-021 |
-| `domain/CuentaTest` | `crear` → id null, saldo 0, ACTIVA, version 0; `debitar` OK decrementa; `debitar` > saldo → `SaldoInsuficienteException` y saldo intacto; `acreditar` incrementa; saldo nunca negativo | AC-021, BR-001 |
+| `domain/MoneyTest` | constructor (SPEC-002): monto/moneda null o monto negativo → `MoneyInvalidoException`; `Money.cero(ARS)` → 0; **operaciones de SPEC-004:** `sumar`/`restar` correctos (con `MathContext.DECIMAL128`, sin `double`); `esMayorQue`/`esMayorOIgualQue`/`esCero` (por `compareTo`); factory `Money.ars(...)` → moneda `"ARS"` | AC-021 |
+| `domain/CuentaTest` | **ya cubre (SPEC-002):** reconstrucción (todos los campos, incl. `version`) y `bloquear()`/guarda `verificarActiva()`; **SPEC-004 agrega:** `debitar` OK decrementa; `debitar` > saldo → `SaldoInsuficienteException` y saldo intacto; `acreditar` incrementa; `debitar`/`acreditar` sobre cuenta `BLOQUEADA` → `CuentaBloqueadaException` (guarda `verificarActiva()`, BR-002/ERR-003); saldo nunca negativo | AC-021, BR-001 |
 | `domain/MovimientoTest` | `crear` (id null) y getters | AC-021 |
-| `application/TransferValidatorTest` | **Orden y corte** (un caso por chequeo, §8.4): origen inexistente → `CuentaNoEncontradaException`; origen ajeno (clienteIdClaim distinto o null) → `AccesoDenegadoException`; origen BLOQUEADA → `CuentaBloqueadaException`; CBU malformado → `DatosInvalidosException("cbuDestino")`; destino inexistente → `CuentaNoEncontradaException`; mismo CBU que origen → `AutoTransferenciaException`; destino BLOQUEADA → `CuentaBloqueadaException`; monto 0/negativo/escala 3 → `DatosInvalidosException("monto")`; moneda distinta (Money USD vs ARS) → `MonedaIncompatibleException` (AC-015); saldo insuficiente → `SaldoInsuficienteException`; total del día + monto ≥ límite → `LimiteDiarioExcedidoException`; happy path → `TransferenciaValidada` con cuentas cargadas y monto `Money`; trim de `cbuDestino` | AC-004..AC-015 (lógica), AC-021 |
+| `application/TransferValidatorTest` | **Orden y corte** (un caso por chequeo, §8.4): origen inexistente → `CuentaNoEncontradaException`; origen ajeno (clienteIdClaim distinto o null) → `AccesoDenegadoException`; origen BLOQUEADA → `CuentaBloqueadaException`; CBU malformado → `DatosInvalidosException("cbuDestino")`; destino inexistente → `CuentaNoEncontradaException`; mismo CBU que origen → `AutoTransferenciaException`; destino BLOQUEADA → `CuentaBloqueadaException`; monto 0/negativo/escala 3 → `DatosInvalidosException("monto")`; moneda distinta (`new Moneda("USD")` vs `new Moneda("ARS")` vía `Money`) → `MonedaIncompatibleException` (AC-015); saldo insuficiente → `SaldoInsuficienteException`; total del día + monto ≥ límite → `LimiteDiarioExcedidoException`; happy path → `TransferenciaValidada` con cuentas cargadas y monto `Money`; trim de `cbuDestino` | AC-004..AC-015 (lógica), AC-021 |
 | `application/TransferirUseCaseTest` | happy path: valida, `debitar`/`acreditar` llamados, 4 `save`, evento publicado **una vez** con (monto, cbuOrigen, cbuDestino, fechaHora, idMovimientoSaliente = id del saliente guardado) — AC-003; confirmación con `idTransferencia` = id del saliente (A-007); saldo insuficiente → excepción propagada sin saves; ambos movimientos con **misma fecha y monto** y contrapartes cruzadas (FR-003, AC-002 lógica) | AC-001, AC-002, AC-003, AC-004 (lógica) |
 | `application/ObtenerMovimientosUseCaseTest` | CLIENTE cuenta propia → lista ordenada (mock del repo); CLIENTE ajena o sin claim → `AccesoDenegadoException`; ADMIN cualquier cuenta → lista; inexistente → `CuentaNoEncontradaException`; orden 404-antes-403 | AC-016..AC-019 (lógica) |
 
@@ -865,13 +924,14 @@ anidada (patrón de `AuthApiIntegrationTest`). Helpers reutilizados:
 
 ```java
 // support/CuentaTestHelper — crea cuentas vía el PUERTO (no HTTP, A-003).
+// Usa la API de dominio de SPEC-002: CuentaFactory.crear + acreditar (fondeo).
 public class CuentaTestHelper {
     private final CuentaRepository cuentaRepository;
     private long contadorCbu = 0;
 
     public Cuenta crearCuenta(Long clienteId, TipoCuenta tipo, BigDecimal saldoInicial) {
         CBU cbu = new CBU("00000031" + String.format("%014d", contadorCbu++)); // 8 + 14 = 22 dígitos
-        Cuenta cuenta = Cuenta.crear(clienteId, tipo, cbu, Moneda.ARS, Instant.now());
+        Cuenta cuenta = CuentaFactory.crear(clienteId, tipo, cbu, new Moneda("ARS"), Instant.now());
         if (saldoInicial.signum() > 0) {
             cuenta.acreditar(Money.ars(saldoInicial));   // fondeo (saldo inicial 0 + acreditar)
         }
@@ -931,13 +991,25 @@ Sin cambios de reglas (AC-023). Las clases nuevas deben cumplir:
 
 Se crea **`docs/adr/ADR-006-agregado-cuenta-minimo-frontera-transaccional-concurrencia-spec-004.md`**:
 tres decisiones significativas: (1) incorporación del agregado `Cuenta` mínimo
-(resolución del gap de SPEC-002, A-001) que condiciona a SPEC-002/SPEC-005;
-(2) frontera transaccional en `infrastructure.service.TransferenciaService`
-(único `@Transactional` del sistema; `application` permanece Spring-free —
-AC-023); (3) estrategia de concurrencia: `@Version` + `409
-CONFLICTO_CONCURRENCIA` sin reintento automático (A-004, BR-006). La decisión 2
-rompe el precedente "sin `@Transactional` explícito" de SPEC-001/SPEC-003 y por
-eso se registra.
+(resolución del gap de SPEC-002, A-001) — **decisión reemplazada por ADR-007**
+(SPEC-002 ya está implementada; SPEC-004 la extiende); (2) frontera
+transaccional en `infrastructure.service.TransferenciaService` (único
+`@Transactional` del sistema; `application` permanece Spring-free — AC-023);
+(3) estrategia de concurrencia: `@Version` + `409 CONFLICTO_CONCURRENCIA` sin
+reintento automático (A-004, BR-006). La decisión 2 rompe el precedente "sin
+`@Transactional` explícito" de SPEC-001/SPEC-003 y por eso se registra. Las
+decisiones 2 y 3 siguen vigentes.
+
+Se crea además **`docs/adr/ADR-007-reconciliacion-spec-004-sobre-spec-002.md`**:
+SPEC-002 fue implementada, revisada y mergeada (PR #20) con formas aprobadas
+distintas a las que asumió esta arquitectura — no existen `Money(BigDecimal,
+Currency)` ni `enum Moneda`; hay `record Money(BigDecimal monto, Moneda
+moneda)`, `record Moneda(String codigo)` y un agregado `Cuenta` ya con
+`@Version`, `bloquear()` y guarda `verificarActiva()`. ADR-007 resuelve que
+SPEC-004 se implementa **sobre** esos VOs/agregado (`Money` gana operaciones;
+`Cuenta` gana `debitar`/`acreditar`; `CuentaRepository` gana la agregación del
+límite diario; migración `V4__movimientos.sql`), sin reescribir el código
+mergeado (AGENTS.md §14).
 
 ---
 
@@ -1009,16 +1081,21 @@ eso se registra.
   través del agregado. (La agregación del límite diario SÍ queda en
   `CuentaRepository` por mandato de la spec §10, con delegación a
   `MovimientoJpaRepository`.)
-- **`CuentaFactory` como clase separada (Strategy):** descartada para el MVP —
-  no hay comportamiento por tipo todavía (comisiones fuera de alcance); el
-  factory estático `Cuenta.crear` sigue la convención (`Cliente.crear`,
-  `Usuario.crear`). Se extrae cuando SPEC-002/005 la necesiten.
+- **`CuentaFactory` como clase separada (Strategy):** **adoptada por SPEC-002**
+  (ya implementada: clase `CuentaFactory` con dispatch por `switch` sobre el
+  tipo — SPEC-002 §13). El diseño original de SPEC-004 preveía un factory
+  estático `Cuenta.crear` (convención `Cliente.crear`/`Usuario.crear`);
+  ADR-007 lo descarta: SPEC-004 consume `CuentaFactory` (tests,
+  `CuentaTestHelper`) y el constructor de reconstrucción sin cambios.
 - **`Money` como `BigDecimal` + `String` moneda (sin VO):** descartado —
   `ARCHITECTURE.md` §4/§6 exige el VO (operaciones con `MathContext`, sin
-  `double`) y BR-007 necesita la `Currency`.
-- **Generación de `CBU` en producción (SPEC-002 FR-002):** descartada — la
-  apertura de cuentas es de SPEC-002 (out of scope); `Cuenta.crear` recibe el
-  CBU y los tests lo generan (A-003). El generador llega con SPEC-002.
+  `double`) y BR-007 se evalúa por igualdad de `Moneda` (código ISO 4217
+  alpha-3, ADR-007).
+- **Generación de `CBU` en producción (SPEC-002 FR-002):** fuera de alcance de
+  SPEC-004 — la apertura de cuentas **ya está implementada por SPEC-002**
+  (generador con `SecureRandom` + regeneración ante colisión en
+  `AbrirCuentaUseCase`, AC-028). Los tests de SPEC-004 generan CBUs de 22
+  dígitos vía `CuentaTestHelper` (A-003).
 - **`TransferenciaConfirmacionDto` en `adapter.web` (duplicado del resultado
   del use case):** descartado — el record `TransferenciaConfirmacion` de
   `application` es el contrato de salida del use case y su forma ES el body de
@@ -1037,14 +1114,17 @@ eso se registra.
 
 Implementar SPEC-004 con:
 
-- **Dominio:** agregado `Cuenta` mínimo (A-001) con VOs `CBU` (22 dígitos) y
-  `Money` (`BigDecimal` + `Currency`, `MathContext`, escala ≤ 2, no negativo),
-  enum `Moneda` (ARS), `TipoCuenta`, `EstadoCuenta`, `TipoMovimiento`, entidad
-  `Movimiento`, puertos `CuentaRepository` (save/findById/findByCbu/
-  findByClienteId/montoTotalTransferenciasSalientesDelDia) y
+- **Dominio:** agregado `Cuenta` **de SPEC-002, extendido** con
+  `debitar`/`acreditar` (ambos con la guarda `verificarActiva()`; `saldo` deja
+  de ser `final` — ADR-007); VOs `CBU` (22 dígitos) y `Money` (`BigDecimal` +
+  `Moneda`; operaciones nuevas con `MathContext`, sin `double`), VO `Moneda`
+  (record `String`), `TipoMovimiento`, entidad `Movimiento`, puertos
+  `CuentaRepository` (SPEC-002 + `montoTotalTransferenciasSalientesDelDia`) y
   `MovimientoRepository` (save/findByCuentaIdOrderByFechaDesc), puerto
-  `TransferenciaEventPublisher`, evento `TransferenciaRealizada`, 7 excepciones
-  nuevas + reuso de `DatosInvalidosException`/`AccesoDenegadoException`.
+  `TransferenciaEventPublisher`, evento `TransferenciaRealizada`, excepciones
+  nuevas `SaldoInsuficiente`/`LimiteDiarioExcedido`/`AutoTransferencia`/
+  `MonedaIncompatible` + reuso de `CuentaNoEncontrada`/`CuentaBloqueada`/
+  `CbuInvalido`/`DatosInvalidos`/`AccesoDenegado` (SPEC-002).
 - **Aplicación (Java puro):** `TransferValidator` (clase única, 10 chequeos en
   el orden de la spec §6, corta ante el primero, devuelve
   `TransferenciaValidada`), `TransferirUseCase` (orquesta el main flow y la
@@ -1059,15 +1139,19 @@ Implementar SPEC-004 con:
 - **Infraestructura:** `TransferenciaController` (POST → 201 +
   `TransferenciaConfirmacion`), `MovimientoController` (GET
   `/api/v1/cuentas/{id}/movimientos` → 200 + `List<MovimientoDto>`), JPA
-  entities/repos/adapters, `TransferenciaBeansConfig`, `SecurityConfig` (POST
-  transferencias → CLIENTE; GET cuentas/*/movimientos → ADMIN|CLIENTE),
-  `GlobalExceptionHandler` (8 mapeos nuevos, incluido
-  `ObjectOptimisticLockingFailureException` → 409).
-- **Migración** `V3__cuentas_y_movimientos.sql` (cuentas con `cbu` UNIQUE, FK
-  cliente, `version BIGINT NOT NULL DEFAULT 0`, `created_at` timestamptz;
-  movimientos con FK cuenta, contraparte nullable, `fecha` timestamptz, índice
-  `(cuenta_id, fecha)`); propiedad `banco.negocio.limite-diario-transferencias`
-  (default 200000) en ambos yml.
+  entities/repos/adapters de movimientos, `TransferenciaBeansConfig`,
+  `SecurityConfig` (POST transferencias → CLIENTE; GET cuentas/*/movimientos →
+  ADMIN|CLIENTE), `GlobalExceptionHandler` (**5 mapeos nuevos** —
+  `SaldoInsuficiente`, `LimiteDiarioExcedido`, `AutoTransferencia`,
+  `MonedaIncompatible`, `ObjectOptimisticLockingFailureException` → 409;
+  `CuentaNoEncontrada`/`CuentaBloqueada`/`CbuInvalido` ya se mapean desde
+  SPEC-002).
+- **Migración** `V4__movimientos.sql` (tabla `movimientos`: FK cuenta,
+  contraparte nullable, `fecha` timestamptz, índice `(cuenta_id, fecha)`; la
+  tabla `cuentas` con `cbu` UNIQUE, FK cliente, `version BIGINT NOT NULL
+  DEFAULT 0` y `created_at` timestamptz ya existe desde la `V3__cuentas.sql`
+  de SPEC-002, sin cambios — ADR-007); propiedad
+  `banco.negocio.limite-diario-transferencias` (default 200000) en ambos yml.
 - **Límite diario (BR-004):** `montoTotalTransferenciasSalientesDelDia(clienteId,
   LocalDate)` en `CuentaRepository`, implementado con JPQL (COALESCE SUM,
   tipo TRANSFERENCIA_SALIENTE, subquery por cliente, rango del día en UTC).

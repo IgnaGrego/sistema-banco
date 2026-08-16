@@ -147,16 +147,17 @@ server-side (A-004). Nunca se pierde consistencia de saldo.
 
 ### BR-007 — Moneda compatible
 
-Las cuentas origen y destino deben tener la misma moneda (`Money` con
-`Currency`). En el MVP solo existe `ARS`, por lo que la regla se verifica
-siempre y se cubre con unit test (AC-015).
+Las cuentas origen y destino deben tener la misma moneda (`Money.moneda()`
+igual — mismo código ISO 4217 alpha-3 del VO `Moneda`). En el MVP solo existe
+`ARS`, por lo que la regla se verifica siempre y se cubre con unit test
+(AC-015).
 
 ### Ubicación de las reglas en capas (AGENTS.md §11)
 
 - **domain** (agregado `Cuenta`, VOs): BR-001 (invariante de saldo en
   `debitar`/`acreditar`), BR-006 (parcial: `@Version` en la entidad),
-  BR-007 (parcial: `Money`/`Currency`). Los VOs `CBU` y `Money` validan en su
-  constructor.
+  BR-007 (parcial: `Money`/`Moneda`). Los VOs `CBU`, `Money` y `Moneda`
+  validan en su constructor.
 - **application** (use case + Chain of Responsibility): BR-002, BR-003,
   BR-004, BR-005, BR-007 (comparación de monedas) y la verificación de
   propiedad/permisos de §9. El use case orquesta la transacción (FR-002) y la
@@ -303,34 +304,41 @@ Se responde `422 Unprocessable Entity` con código `MONEDA_INCOMPATIBLE`.
 
 ## 10. Data Changes
 
-- **Entidad `Cuenta`** (agregado raíz — mínima requerida por transferencias,
-  ver A-001): `id`, `clienteId`, `cbu` (VO `CBU`), `tipo`
+- **Entidad `Cuenta`** (agregado raíz, ya implementado por SPEC-002 — ver
+  A-008): `id`, `clienteId`, `cbu` (VO `CBU`), `tipo`
   (`CAJA_AHORRO` | `CUENTA_CORRIENTE`), `saldo` (VO `Money`), `moneda`
-  (`ARS`), `estado` (`ACTIVA` | `BLOQUEADA`), `createdAt`, `@Version`.
-  Métodos de dominio: `debitar(monto)` y `acreditar(monto)` (invariante de
-  saldo `>= 0` — BR-001) y creación mediante factory/método de fábrica por
-  tipo (saldo inicial `0`, estado `ACTIVA`, `CBU` asignado).
-- **Value Objects** (dominio, inmutables): `CBU` (validado, único — BR de
-  SPEC-002 §5.1) y `Money` (`BigDecimal` + `Currency`, operaciones con
-  `MathContext` explícito, sin `double` — `ARCHITECTURE.md` §6).
+  (VO `Moneda` — `ARS`), `estado` (`ACTIVA` | `BLOQUEADA`), `createdAt`,
+  `@Version`; la creación la centraliza `CuentaFactory` de SPEC-002 (saldo
+  inicial `0`, estado `ACTIVA`, `CBU` asignado). SPEC-004 le agrega los
+  métodos de dominio `debitar(monto)` y `acreditar(monto)` (invariante de
+  saldo `>= 0` — BR-001) sobre el agregado existente.
+- **Value Objects** (dominio, inmutables — implementados por SPEC-002): `CBU`
+  (validado, único — BR de SPEC-002 §5.1) y `Money` (record `(BigDecimal
+  monto, Moneda moneda)`, inmutable, saldo `>= 0` — invariante BR-001; en
+  este sprint se le agregan las operaciones
+  `sumar`/`restar`/`esMayorQue`/`esMayorOIgualQue`/`esCero` y la factory
+  `ars(BigDecimal)`); `Moneda` record `(String codigo)` con formato ISO 4217
+  alpha-3 (mantiene la decisión de SPEC-002 §13: "Record con String, no
+  enum").
 - **CBU — formato**: exactamente 22 dígitos (`^[0-9]{22}$`), validado en el VO
   en su constructor.
 - **Entidad `Movimiento`** (parte del agregado `Cuenta`): `id`, `cuentaId`,
   `tipo` (`DEPOSITO` | `RETIRO` | `TRANSFERENCIA_ENTRANTE` |
   `TRANSFERENCIA_SALIENTE`), `monto`, `fecha`, `cuentaContraparteId`
   (cuenta opuesta de la operación; nullable para operaciones sin contraparte).
-- **Puerto `CuentaRepository`** (dominio): `save`, `findById`, `findByCbu`,
-  `findByClienteId` y la consulta de agregación del límite diario (suma de
-  `TRANSFERENCIA_SALIENTE` del día por cliente — BR-004). Lo implementa un
-  adaptador JPA en `infrastructure`.
+- **Puerto `CuentaRepository`** (dominio): el puerto de SPEC-002 ya define
+  `save`, `findById`, `findByCbu` y `findByClienteId`; SPEC-004 le agrega la
+  consulta de agregación del límite diario (suma de `TRANSFERENCIA_SALIENTE`
+  del día por cliente — BR-004). Lo implementa un adaptador JPA en
+  `infrastructure`.
 - **`@Version`** en la entidad JPA de `Cuenta` (columna `version`) para
   optimistic locking (BR-006).
-- **Migración Flyway** `V3__cuentas_y_movimientos.sql`: tablas `cuentas`
-  (`cbu` `UNIQUE`, `cliente_id` `FOREIGN KEY` → `clientes(id)`, `saldo`
-  `DECIMAL`, `moneda`, `tipo`, `estado`, `created_at`, `version`) y
-  `movimientos` (`cuenta_id` `FOREIGN KEY` → `cuentas(id)`, `tipo`, `monto`
-  `DECIMAL`, `fecha`, `cuenta_contraparte_id` nullable). Índice recomendado
-  sobre `movimientos(cuenta_id, fecha)` para historial y límite diario.
+- **Migración Flyway** `V4__movimientos.sql` (NOTA: la tabla `cuentas` ya la
+  crea SPEC-002 en `V3__cuentas.sql`, incluyendo la columna `version` para
+  `@Version` — BR-006): solo agrega la tabla `movimientos` (`cuenta_id`
+  `FOREIGN KEY` → `cuentas(id)`, `tipo`, `monto` `DECIMAL`, `fecha`,
+  `cuenta_contraparte_id` nullable) e índice `idx_movimientos_cuenta_fecha`
+  sobre `(cuenta_id, fecha)` para historial y límite diario.
 - **Configuración**: clave `banco.negocio.limite-diario-transferencias`
   (default `200000`, en `ARS`) en `application.yml` (A-002), consistente con
   el naming `banco.security.*` existente.
@@ -516,6 +524,13 @@ cosa, deben ajustarse antes de la implementación.
   `ARCHITECTURE.md` §4). El `idTransferencia` de la respuesta de FR-001 es el
   id del `Movimiento` `TRANSFERENCIA_SALIENTE` generado, que identifica la
   operación para conciliación.
+- **A-008 — Reconciliación con SPEC-002 (SPEC-002 implementada):** esta spec
+  se redactó antes de la implementación de SPEC-002; los VOs `Money`/`Moneda`
+  y el agregado `Cuenta` conservan las formas APROBADAS e implementadas de
+  SPEC-002 (record `Moneda(String codigo)`, record
+  `Money(BigDecimal monto, Moneda moneda)`), y SPEC-004 los extiende
+  (aritmética de `Money`, `debitar`/`acreditar` en `Cuenta`). BR-007 se
+  evalúa por código ISO de la moneda.
 
 ---
 
