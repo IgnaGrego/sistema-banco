@@ -309,7 +309,7 @@ describe('CajaSection (SPEC-007 FR-001..FR-007, BR-001..BR-003, AC-001..AC-018)'
   });
 
   it('AC-011 — 400 DATOS_INVALIDOS con details de monto → error por campo y datos conservados', async () => {
-    mockFetchRespuestas([
+    const fetchMock = mockFetchRespuestas([
       { url: '/api/v1/clientes', method: 'GET', status: 200, cuerpo: CLIENTES },
       { url: '/api/v1/cuentas', method: 'GET', status: 200, cuerpo: CUENTAS },
       {
@@ -319,7 +319,9 @@ describe('CajaSection (SPEC-007 FR-001..FR-007, BR-001..BR-003, AC-001..AC-018)'
         cuerpo: {
           code: 'DATOS_INVALIDOS',
           message: 'Datos inválidos',
-          details: [{ campo: 'monto', mensaje: 'El monto debe ser mayor a 0' }],
+          // Mensaje que solo el servidor devuelve (no lo produce la
+          // pre-validación de UX) para probar el mapeo details → por campo.
+          details: [{ campo: 'monto', mensaje: 'El monto supera el límite permitido' }],
         },
       },
     ]);
@@ -330,12 +332,25 @@ describe('CajaSection (SPEC-007 FR-001..FR-007, BR-001..BR-003, AC-001..AC-018)'
 
     const dep = seccionDe('Depósito');
     await usuario.selectOptions(dep.getByLabelText('Cuenta destino'), '1');
-    await usuario.type(dep.getByLabelText('Monto depósito'), '0');
+    // El monto pasa la pre-validación (BR-001), por lo que la request SÍ se
+    // envía y el error llega del envelope 400 del backend (AC-011).
+    await usuario.type(dep.getByLabelText('Monto depósito'), '100');
     await usuario.click(dep.getByRole('button', { name: 'Depositar' }));
 
-    expect(await dep.findByRole('alert')).toHaveTextContent('El monto debe ser mayor a 0');
+    // El mensaje por campo proviene del details del envelope (no de la UX):
+    // se consulta el alert del campo monto (hay también un alert general con
+    // `message` del envelope, por eso se acota al contenedor del campo).
+    const campoMonto = dep.getByLabelText('Monto depósito').closest('.campo') as HTMLElement;
+    expect(await within(campoMonto).findByRole('alert')).toHaveTextContent(
+      'El monto supera el límite permitido',
+    );
     // Los datos ingresados se conservan (ERR-001).
-    expect(dep.getByLabelText('Monto depósito')).toHaveValue('0');
+    expect(dep.getByLabelText('Monto depósito')).toHaveValue('100');
+    // La request se envió al backend.
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/depositos',
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 
   it.each([
