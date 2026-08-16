@@ -53,7 +53,7 @@ Request:
 ```json
 {
   "cuentaOrigenId": 10,
-  "cbuDestino": "00000031000000000001",
+  "cbuDestino": "0000003100000000001234",
   "monto": 15000.00
 }
 ```
@@ -64,7 +64,7 @@ Responde `201 Created` con la confirmación:
 {
   "idTransferencia": 501,
   "monto": 15000.00,
-  "cbuDestino": "00000031000000000001",
+  "cbuDestino": "0000003100000000001234",
   "fechaHora": "2026-08-16T10:30:00Z"
 }
 ```
@@ -313,6 +313,8 @@ Se responde `422 Unprocessable Entity` con código `MONEDA_INCOMPATIBLE`.
 - **Value Objects** (dominio, inmutables): `CBU` (validado, único — BR de
   SPEC-002 §5.1) y `Money` (`BigDecimal` + `Currency`, operaciones con
   `MathContext` explícito, sin `double` — `ARCHITECTURE.md` §6).
+- **CBU — formato**: exactamente 22 dígitos (`^[0-9]{22}$`), validado en el VO
+  en su constructor.
 - **Entidad `Movimiento`** (parte del agregado `Cuenta`): `id`, `cuentaId`,
   `tipo` (`DEPOSITO` | `RETIRO` | `TRANSFERENCIA_ENTRANTE` |
   `TRANSFERENCIA_SALIENTE`), `monto`, `fecha`, `cuentaContraparteId`
