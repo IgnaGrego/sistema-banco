@@ -33,7 +33,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
+        // RFC 6750 §2.1: el scheme "Bearer" es case-insensitive.
+        if (header != null && header.regionMatches(true, 0, "Bearer ", 0, 7)) {
             String token = header.substring(7);
             try {
                 AuthenticatedUser usuario = jwtService.validar(token);

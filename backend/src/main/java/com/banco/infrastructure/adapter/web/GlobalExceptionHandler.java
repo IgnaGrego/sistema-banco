@@ -5,6 +5,8 @@ import com.banco.domain.exception.ClienteDuplicadoException;
 import com.banco.domain.exception.ClienteNoEncontradoException;
 import com.banco.domain.exception.DatosInvalidosException;
 import com.banco.domain.exception.DniInvalidoException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -22,6 +24,8 @@ import java.util.List;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(DatosInvalidosException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -73,12 +77,16 @@ public class GlobalExceptionHandler {
     public ErrorResponse handleDataIntegrityViolation(DataIntegrityViolationException e) {
         // Backstop de carrera: el constraint UNIQUE de la BD no permite
         // identificar el campo; se reporta genérico (§5.4 del diseño).
+        log.warn("Conflicto de unicidad capturado por constraint de BD", e);
         return new ErrorResponse("CONFLICTO_UNICIDAD", "Conflicto de unicidad de datos", null);
     }
 
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleException(Exception e) {
+        // Se loguea la causa completa para diagnóstico, pero el cliente solo
+        // recibe el envelope fijo (no se filtra detalle interno).
+        log.error("Error interno no esperado", e);
         return new ErrorResponse("ERROR_INTERNO", "Error interno del servidor", null);
     }
 }

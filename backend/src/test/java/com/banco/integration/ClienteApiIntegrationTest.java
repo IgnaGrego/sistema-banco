@@ -1,8 +1,12 @@
 package com.banco.integration;
 
+import com.banco.support.JwtTokenFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -25,11 +29,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * {@code @Testcontainers(disabledWithoutDocker = true)} también aquí, de forma
  * defensiva: la herencia no debe causar fallo duro si no hay Docker.
+ *
+ * {@link TokenConfig} debe estar anidada en la clase de test EJECUTADA (no en
+ * la superclase): Spring Boot solo auto-registra {@code @TestConfiguration}
+ * anidadas en la clase bajo ejecución. Declara el bean {@link JwtTokenFactory}
+ * con el secret de application-test.yml (mismo contrato de claims que JwtService).
  */
 @Testcontainers(disabledWithoutDocker = true)
 class ClienteApiIntegrationTest extends BaseIntegrationTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    @TestConfiguration
+    public static class TokenConfig {
+
+        @Bean
+        JwtTokenFactory jwtTokenFactory(
+                @Value("${banco.security.jwt-secret}") String secret,
+                @Value("${banco.security.jwt-expiration-minutes:60}") long expirationMinutes) {
+            return new JwtTokenFactory(secret, expirationMinutes);
+        }
+    }
 
     // --- Helpers ---
 
