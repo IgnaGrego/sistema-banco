@@ -2,7 +2,9 @@ package com.banco.domain.port;
 
 import com.banco.domain.model.Cuenta;
 import com.banco.domain.vo.CBU;
+import com.banco.domain.vo.Money;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,4 +33,12 @@ public interface CuentaRepository {
     List<Cuenta> findAll();
 
     boolean existsByCbu(CBU cbu);
+
+    /**
+     * Suma de los montos de los movimientos TRANSFERENCIA_SALIENTE del cliente
+     * (TODAS sus cuentas) en el día calendario dado (BR-004 de SPEC-004). Día
+     * interpretado en UTC (convención de almacenamiento del repo — V1). Devuelve
+     * 0 (ARS) si no hay movimientos.
+     */
+    Money montoTotalTransferenciasSalientesDelDia(Long clienteId, LocalDate dia);
 }
