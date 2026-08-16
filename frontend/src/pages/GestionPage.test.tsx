@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GestionPage from './GestionPage';
 import { mockFetchRespuestas, renderizarConSesion } from '../test/helpers';
@@ -53,7 +53,8 @@ describe('GestionPage (AC-028, AC-021)', () => {
 
     renderizarGestion();
 
-    await screen.findByText('Pérez, Juan');
+    const nombres = await screen.findAllByText('Pérez, Juan');
+    expect(nombres.length).toBeGreaterThanOrEqual(1);
     await usuario.type(screen.getAllByLabelText('Nombre')[0], 'María');
     await usuario.type(screen.getAllByLabelText('Apellido')[0], 'López');
     await usuario.type(screen.getAllByLabelText('DNI')[0], '33333333');
@@ -66,6 +67,7 @@ describe('GestionPage (AC-028, AC-021)', () => {
   it('AC-028 — 422 en la apertura de cuenta: se muestra el mensaje del envelope en la vista', async () => {
     mockFetchRespuestas([
       { url: '/api/v1/clientes', method: 'GET', status: 200, cuerpo: CLIENTES },
+      { url: '/api/v1/cuentas', method: 'GET', status: 200, cuerpo: [] },
       {
         url: '/api/v1/cuentas',
         method: 'POST',
@@ -77,8 +79,14 @@ describe('GestionPage (AC-028, AC-021)', () => {
 
     renderizarGestion();
 
-    await screen.findByText('Pérez, Juan');
-    await usuario.selectOptions(screen.getByLabelText('Cliente'), '1');
+    const nombres = await screen.findAllByText('Pérez, Juan');
+    expect(nombres.length).toBeGreaterThanOrEqual(1);
+    // El label "Cliente" ahora existe en CuentasSection y CajaSection: se acota
+    // al selector de la sección Cuentas (heading único "Cuentas", §8.7).
+    const seccionCuentas = within(
+      screen.getByRole('heading', { name: 'Cuentas' }).closest('.seccion') as HTMLElement,
+    );
+    await usuario.selectOptions(seccionCuentas.getByLabelText('Cliente'), '1');
     await usuario.click(screen.getByRole('button', { name: 'Abrir cuenta' }));
 
     expect(await screen.findByText('La moneda solicitada no es soportada')).toBeInTheDocument();
@@ -89,9 +97,9 @@ describe('GestionPage (AC-028, AC-021)', () => {
 
     renderizarGestion();
 
-    await screen.findByText('Pérez, Juan');
+    const nombres = await screen.findAllByText('Pérez, Juan');
+    expect(nombres.length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Transferencia')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('CBU destino')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Monto')).not.toBeInTheDocument();
   });
 });

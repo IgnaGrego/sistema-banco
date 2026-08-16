@@ -118,3 +118,68 @@ export function validarAperturaCuenta(
   }
   return errores;
 }
+
+// ---------------------------------------------------------------------------
+// Caja (SPEC-007 BR-001..BR-003): pre-validaciones de UX que espejan las
+// reglas del backend (SPEC-005 BR-001..BR-004); el backend permanece como
+// fuente de verdad y punto de enforcement (BR-005, A-002).
+// ---------------------------------------------------------------------------
+
+/** BR-003 — caja: la cuenta destino es obligatoria. */
+function validarCuentaCaja(cuentaId: number | null): string | undefined {
+  if (cuentaId === null) {
+    return 'Seleccione la cuenta';
+  }
+  return undefined;
+}
+
+/** BR-001 — caja: monto obligatorio, numérico, mayor a 0 y con hasta 2 decimales (REGEX_MONTO). */
+function validarMontoCaja(monto: string): string | undefined {
+  const montoRecortado = monto.trim();
+  if (montoRecortado === '') {
+    return 'El monto es obligatorio';
+  }
+  if (!REGEX_MONTO.test(montoRecortado)) {
+    return 'El monto debe ser un número con hasta 2 decimales';
+  }
+  if (Number(montoRecortado) <= 0) {
+    return 'El monto debe ser mayor a 0';
+  }
+  return undefined;
+}
+
+/** BR-001/BR-003 — depósito: cuenta obligatoria y monto > 0 con hasta 2 decimales (AC-007/009/010). */
+export function validarDeposito(cuentaId: number | null, monto: string): ErroresPorCampo {
+  const errores: ErroresPorCampo = {};
+  const errCuenta = validarCuentaCaja(cuentaId);
+  if (errCuenta !== undefined) {
+    errores.cuentaId = errCuenta;
+  }
+  const errMonto = validarMontoCaja(monto);
+  if (errMonto !== undefined) {
+    errores.monto = errMonto;
+  }
+  return errores;
+}
+
+/**
+ * BR-001..BR-003 — retiro: ídem depósito + saldo suficiente (espejo UX del
+ * `422 SALDO_INSUFICIENTE` — A-002, AC-008/010). `saldoCuenta` es el saldo del
+ * `CuentaDto` de la cuenta seleccionada (undefined sin selección válida → se
+ * omite el chequeo; el backend permanece como fuente de verdad).
+ */
+export function validarRetiro(
+  cuentaId: number | null,
+  monto: string,
+  saldoCuenta: number | undefined,
+): ErroresPorCampo {
+  const errores = validarDeposito(cuentaId, monto);
+  if (
+    Object.keys(errores).length === 0 &&
+    saldoCuenta !== undefined &&
+    Number(monto.trim()) > saldoCuenta
+  ) {
+    errores.monto = 'El saldo no es suficiente para el retiro';
+  }
+  return errores;
+}

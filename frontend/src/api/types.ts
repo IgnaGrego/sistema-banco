@@ -84,6 +84,34 @@ export interface TransferenciaConfirmacion {
   fechaHora: string;
 }
 
+/** POST /api/v1/depositos (SPEC-005 FR-001). Espejo de `DepositoRequest(Long cuentaId, BigDecimal monto)`. */
+export interface DepositoRequest {
+  cuentaId: number;
+  monto: number;
+}
+
+/** POST /api/v1/retiros (SPEC-005 FR-002). Espejo de `RetiroRequest(Long cuentaId, BigDecimal monto)`. */
+export interface RetiroRequest {
+  cuentaId: number;
+  monto: number;
+}
+
+/** 201 de POST /api/v1/depositos. Espejo de `DepositoConfirmacion(Long idMovimiento, Long cuentaId, BigDecimal monto, Instant fechaHora)`. */
+export interface DepositoConfirmacion {
+  idMovimiento: number;
+  cuentaId: number;
+  monto: number;
+  fechaHora: string;
+}
+
+/** 201 de POST /api/v1/retiros. Espejo de `RetiroConfirmacion(...)` (misma forma). */
+export interface RetiroConfirmacion {
+  idMovimiento: number;
+  cuentaId: number;
+  monto: number;
+  fechaHora: string;
+}
+
 export interface DetalleError {
   campo: string;
   mensaje: string;
