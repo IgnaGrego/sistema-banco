@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+
+banco:
+  security:
+    # Secret de TEST (>= 32 bytes para HS256). Valor fijo solo para tests;
+    # no es una credencial real.
+    jwt-secret: test-only-secret-clave-hs256-de-32-bytes-minimo
+    jwt-expiration-minutes: 60
