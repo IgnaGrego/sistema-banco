@@ -1,0 +1,45 @@
+services:
+  webhook:
+    build: ./webhook
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:?set WEBHOOK_SECRET in .env}
+      TRIGGER_COMMAND: ${TRIGGER_COMMAND:-/sdd}
+      QUEUE_DIR: /queue
+    volumes:
+      - queue:/queue
+    ports:
+      - "${WEBHOOK_PORT:-8080}:8080"
+
+  worker:
+    build: ./worker
+    restart: unless-stopped
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN in .env}
+      GH_TOKEN: ${GITHUB_TOKEN:?set GITHUB_TOKEN in .env}
+      QUEUE_DIR: /queue
+      DONE_DIR: /queue/done
+      FAILED_DIR: /queue/failed
+      WORK_DIR: /work
+      PR_BASE_BRANCH: ${PR_BASE_BRANCH:-testing}
+      AGENT: ${AGENT:-orchestrator}
+      MODEL: ${MODEL:-}
+      ALLOWED_REPOS: ${ALLOWED_REPOS:-}
+      POLL_MS: ${POLL_MS:-5000}
+      GIT_USER_NAME: ${GIT_USER_NAME:-SDD Bot}
+      GIT_USER_EMAIL: ${GIT_USER_EMAIL:-sdd-bot@localhost}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    volumes:
+      - queue:/queue
+      - work:/work
+      - opencode-data:/root/.local/share/opencode
+      - opencode-config:/root/.config/opencode
+
+volumes:
+  queue:
+  work:
+  opencode-data:
+  opencode-config:

@@ -1,0 +1,44 @@
+# Infraestructura de desarrollo local.
+# - PostgreSQL en el puerto 5433 (para no chocar con el gimnasio del VPS).
+# - Los servicios `api` y `front` se habilitan cuando existan sus Dockerfiles
+#   (los generan los agentes en los Sprints 1 y 4).
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: banco
+      POSTGRES_USER: banco
+      POSTGRES_PASSWORD: banco
+    ports:
+      - "5433:5432"
+    volumes:
+      - banco_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banco"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # api:
+  #   build: ../backend
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banco
+  #     SPRING_DATASOURCE_USERNAME: banco
+  #     SPRING_DATASOURCE_PASSWORD: banco
+  #   ports:
+  #     - "8081:8080"
+
+  # front:
+  #   build: ../frontend
+  #   ports:
+  #     - "5173:5173"
+  #   depends_on:
+  #     - api
+
+volumes:
+  banco_pgdata:

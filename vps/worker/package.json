@@ -1,0 +1,5 @@
+{
+  "name": "sdd-worker",
+  "private": true,
+  "type": "module"
+}

@@ -1,0 +1,32 @@
+# --- Referencia del SDD kit (se puede borrar una vez adaptado) ---
+sdd-kit/
+
+# --- Secrets ---
+.env
+*.env
+*.env.local
+
+# --- Java / Maven ---
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+
+# --- Node / React ---
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# --- IDE ---
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# --- OS ---
+.DS_Store
+Thumbs.db
