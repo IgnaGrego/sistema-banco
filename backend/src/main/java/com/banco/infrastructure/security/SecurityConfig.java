@@ -26,9 +26,12 @@ import java.nio.charset.StandardCharsets;
  * anyRequest (docs/architecture/SPEC-002.md §8.4): el listado EXACTO
  * (GET /api/v1/cuentas) y la sub-ruta /cbu/** van ANTES del comodín /{id}; la
  * propiedad de CLIENTE se verifica SIEMPRE en el use case (BR-006,
- * ARCHITECTURE.md §8), nunca en el matcher. El resto del chain (CSRF off,
- * stateless, entry point 401, handler 403, filtro JWT) no cambia.
- * Sin CORS (no hay frontend en este sprint).
+ * ARCHITECTURE.md §8), nunca en el matcher. SPEC-004 agrega los matchers de
+ * transferencias (POST → solo CLIENTE, A-005) e historial (GET
+ * /api/v1/cuentas/{id}/movimientos → ADMIN|CLIENTE; la propiedad de CLIENTE se
+ * verifica en ObtenerMovimientosUseCase — docs/architecture/SPEC-004.md §8.5).
+ * El resto del chain (CSRF off, stateless, entry point 401, handler 403, filtro
+ * JWT) no cambia. Sin CORS (no hay frontend en este sprint).
  */
 @Configuration
 @EnableWebSecurity
@@ -60,6 +63,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/cuentas").hasAnyRole("ADMIN", "CLIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/cuentas/cbu/**").hasAnyRole("ADMIN", "CLIENTE")
                         .requestMatchers(HttpMethod.GET, "/api/v1/cuentas/**").hasAnyRole("ADMIN", "CLIENTE")
+                        // SPEC-004 §8.5: transferencias solo CLIENTE (el ADMIN no
+                        // inicia transferencias — A-005); historial ADMIN o CLIENTE
+                        // (la propiedad de CLIENTE se verifica en el use case).
+                        .requestMatchers(HttpMethod.POST, "/api/v1/transferencias").hasRole("CLIENTE")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cuentas/*/movimientos").hasAnyRole("ADMIN", "CLIENTE")
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->

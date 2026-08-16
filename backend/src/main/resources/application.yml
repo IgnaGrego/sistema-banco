@@ -18,3 +18,7 @@ banco:
     # CI/tests se usa application-test.yml. Nunca usar en producción.
     jwt-secret: ${JWT_SECRET:dev-only-secret-clave-hs256-de-32-bytes-minimo}
     jwt-expiration-minutes: 60
+  negocio:
+    # Límite diario GLOBAL de transferencias por cliente (BR-004, A-002),
+    # en ARS. Configurable; default 200000.
+    limite-diario-transferencias: 200000

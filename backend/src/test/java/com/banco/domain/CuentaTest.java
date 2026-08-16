@@ -1,6 +1,7 @@
 package com.banco.domain;
 
 import com.banco.domain.exception.CuentaBloqueadaException;
+import com.banco.domain.exception.SaldoInsuficienteException;
 import com.banco.domain.model.Cuenta;
 import com.banco.domain.model.EstadoCuenta;
 import com.banco.domain.model.TipoCuenta;
@@ -17,9 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Agregado Cuenta: constructor de reconstrucción (conserva todos los campos,
- * incl. version) y la transición {@code bloquear()} con su guarda de BR-003
- * (AC-027, dominio): ACTIVA → BLOQUEADA, y operar una cuenta BLOQUEADA
- * (incluido volver a {@code bloquear()}) lanza {@link CuentaBloqueadaException}.
+ * incl. version), la transición {@code bloquear()} con su guarda de BR-003
+ * (AC-027, dominio) y los métodos de dinero de SPEC-004 {@code debitar}/
+ * {@code acreditar} (BR-001, BR-002, ERR-001, ERR-003 — AC-021): ACTIVA →
+ * decremento/incremento, saldo insuficiente → {@link SaldoInsuficienteException}
+ * con saldo intacto, y cuenta BLOQUEADA → {@link CuentaBloqueadaException}
+ * (la guarda {@code verificarActiva()} se invoca primero).
  */
 class CuentaTest {
 
@@ -66,5 +70,70 @@ class CuentaTest {
         // BR-003 / A-001: cualquier operación de negocio (incluido volver a
         // bloquear()) sobre una cuenta BLOQUEADA lanza CuentaBloqueadaException.
         assertThrows(CuentaBloqueadaException.class, cuenta::bloquear);
+    }
+
+    // --- SPEC-004: debitar / acreditar (BR-001, BR-002, ERR-001, ERR-003) ---
+
+    @Test
+    void debitarDecrementaElSaldo() {
+        Cuenta cuenta = cuentaConSaldo(new BigDecimal("1000.00"));
+
+        cuenta.debitar(Money.ars(new BigDecimal("400.00")));
+
+        assertEquals(0, cuenta.getSaldo().monto().compareTo(new BigDecimal("600.00")));
+    }
+
+    @Test
+    void debitarSaldoInsuficienteLanzaSaldoInsuficienteYNoAlteraElSaldo() {
+        Cuenta cuenta = cuentaConSaldo(new BigDecimal("100.00"));
+
+        assertThrows(SaldoInsuficienteException.class,
+                () -> cuenta.debitar(Money.ars(new BigDecimal("100.01"))));
+
+        // ERR-001: el saldo queda intacto (invariante nunca negativo — BR-001).
+        assertEquals(0, cuenta.getSaldo().monto().compareTo(new BigDecimal("100.00")));
+    }
+
+    @Test
+    void debitarMontoIgualAlSaldoDejaSaldoCero() {
+        Cuenta cuenta = cuentaConSaldo(new BigDecimal("100.00"));
+
+        cuenta.debitar(Money.ars(new BigDecimal("100.00")));
+
+        assertEquals(0, cuenta.getSaldo().monto().signum());
+    }
+
+    @Test
+    void debitarSobreCuentaBloqueadaLanzaCuentaBloqueada() {
+        Cuenta cuenta = cuentaConSaldo(new BigDecimal("100.00"));
+        cuenta.bloquear();
+
+        // BR-002/ERR-003: la guarda verificarActiva() se invoca primero.
+        assertThrows(CuentaBloqueadaException.class,
+                () -> cuenta.debitar(Money.ars(new BigDecimal("10.00"))));
+    }
+
+    @Test
+    void acreditarIncrementaElSaldo() {
+        Cuenta cuenta = cuentaConSaldo(new BigDecimal("100.00"));
+
+        cuenta.acreditar(Money.ars(new BigDecimal("250.50")));
+
+        assertEquals(0, cuenta.getSaldo().monto().compareTo(new BigDecimal("350.50")));
+    }
+
+    @Test
+    void acreditarSobreCuentaBloqueadaLanzaCuentaBloqueada() {
+        Cuenta cuenta = cuentaConSaldo(new BigDecimal("100.00"));
+        cuenta.bloquear();
+
+        // BR-002/ERR-003: la guarda verificarActiva() se invoca primero.
+        assertThrows(CuentaBloqueadaException.class,
+                () -> cuenta.acreditar(Money.ars(new BigDecimal("10.00"))));
+    }
+
+    private static Cuenta cuentaConSaldo(BigDecimal monto) {
+        return new Cuenta(1L, 7L, CBU_VALIDO, TipoCuenta.CAJA_AHORRO, Money.ars(monto), ARS,
+                EstadoCuenta.ACTIVA, CREATED_AT, 0L);
     }
 }

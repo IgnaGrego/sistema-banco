@@ -1,6 +1,7 @@
 package com.banco.infrastructure.adapter.web;
 
 import com.banco.domain.exception.AccesoDenegadoException;
+import com.banco.domain.exception.AutoTransferenciaException;
 import com.banco.domain.exception.CbuInvalidoException;
 import com.banco.domain.exception.ClienteDuplicadoException;
 import com.banco.domain.exception.ClienteNoEncontradoException;
@@ -9,14 +10,18 @@ import com.banco.domain.exception.CuentaBloqueadaException;
 import com.banco.domain.exception.CuentaNoEncontradaException;
 import com.banco.domain.exception.DatosInvalidosException;
 import com.banco.domain.exception.DniInvalidoException;
+import com.banco.domain.exception.LimiteDiarioExcedidoException;
+import com.banco.domain.exception.MonedaIncompatibleException;
 import com.banco.domain.exception.MonedaInvalidaException;
 import com.banco.domain.exception.MonedaNoSoportadaException;
+import com.banco.domain.exception.SaldoInsuficienteException;
 import com.banco.domain.exception.UsernameDuplicadoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -26,7 +31,10 @@ import java.util.List;
 
 /**
  * Traduce excepciones al envelope estándar según la tabla de mapeo de
- * docs/architecture/SPEC-001.md §8.6, SPEC-003.md §8.6 y SPEC-002.md §8.5.
+ * docs/architecture/SPEC-001.md §8.6, SPEC-003.md §8.6, SPEC-002.md §8.5 y
+ * SPEC-004.md §8.6 (nuevos: SaldoInsuficiente/LimiteDiarioExcedido/
+ * AutoTransferencia/MonedaIncompatible → 422 y
+ * ObjectOptimisticLockingFailureException → 409).
  * Los 401/403 de Spring Security los escriben el entry point y el access-denied
  * handler de SecurityConfig.
  */
@@ -143,6 +151,44 @@ public class GlobalExceptionHandler {
         // identificar el campo; se reporta genérico (§5.4 del diseño).
         log.warn("Conflicto de unicidad capturado por constraint de BD", e);
         return new ErrorResponse("CONFLICTO_UNICIDAD", "Conflicto de unicidad de datos", null);
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException e) {
+        // ERR-005 → 409 CONFLICTO_CONCURRENCIA (BR-006, A-004). Hibernate lanza
+        // StaleObjectStateException, que Spring envuelve como
+        // ObjectOptimisticLockingFailureException. Sin reintento automático.
+        log.warn("Conflicto de concurrencia (optimistic lock) en transferencia", e);
+        return new ErrorResponse("CONFLICTO_CONCURRENCIA", "Conflicto de concurrencia: reintente la operación", null);
+    }
+
+    @ExceptionHandler(SaldoInsuficienteException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleSaldoInsuficiente(SaldoInsuficienteException e) {
+        // ERR-001 → 422 SALDO_INSUFICIENTE, sin details (BR-001).
+        return new ErrorResponse("SALDO_INSUFICIENTE", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(LimiteDiarioExcedidoException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleLimiteDiarioExcedido(LimiteDiarioExcedidoException e) {
+        // ERR-007 → 422 LIMITE_DIARIO_EXCEDIDO, sin details (BR-004, AF-002).
+        return new ErrorResponse("LIMITE_DIARIO_EXCEDIDO", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(AutoTransferenciaException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleAutoTransferencia(AutoTransferenciaException e) {
+        // ERR-008 → 422 AUTO_TRANSFERENCIA, sin details (BR-005).
+        return new ErrorResponse("AUTO_TRANSFERENCIA", e.getMessage(), null);
+    }
+
+    @ExceptionHandler(MonedaIncompatibleException.class)
+    @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
+    public ErrorResponse handleMonedaIncompatible(MonedaIncompatibleException e) {
+        // ERR-009 → 422 MONEDA_INCOMPATIBLE, sin details (BR-007).
+        return new ErrorResponse("MONEDA_INCOMPATIBLE", e.getMessage(), null);
     }
 
     @ExceptionHandler(Exception.class)
