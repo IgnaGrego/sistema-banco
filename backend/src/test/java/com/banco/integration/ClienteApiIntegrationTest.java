@@ -64,7 +64,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     private long crearClienteAdmin(String nombre, String apellido, String dni,
                                    String email, String telefono) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente(nombre, apellido, dni, email, telefono)))
                 .andExpect(status().isCreated())
@@ -78,7 +78,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC001_crearConTokenAdminYDatossValidosResponde201ConIdYFechaAlta() throws Exception {
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan", "Perez", "10000001", "ac001@example.com", "+549112345678")))
                 .andExpect(status().isCreated())
@@ -96,7 +96,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC002_dniDuplicadoResponde409IndicandoElCampo() throws Exception {
         crearClienteAdmin("Ana", "Lopez", "10000002", "ac002a@example.com", null);
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Otro", "Cliente", "10000002", "ac002b@example.com", null)))
                 .andExpect(status().isConflict())
@@ -109,7 +109,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC003_emailDuplicadoResponde409IndicandoElCampo() throws Exception {
         crearClienteAdmin("Ana", "Lopez", "10000003", "ac003@example.com", null);
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Otro", "Cliente", "20000003", "ac003@example.com", null)))
                 .andExpect(status().isConflict())
@@ -121,7 +121,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC004_dniNoNumericoOLongitudIncorrectaResponde400() throws Exception {
         // no numérico
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan", "Perez", "abcdefg", "ac004a@example.com", null)))
                 .andExpect(status().isBadRequest())
@@ -129,14 +129,14 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.details[0].campo").value("dni"));
         // 6 dígitos
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan", "Perez", "123456", "ac004b@example.com", null)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[0].campo").value("dni"));
         // 9 dígitos
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan", "Perez", "123456789", "ac004c@example.com", null)))
                 .andExpect(status().isBadRequest())
@@ -146,7 +146,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC005_emailMalformadoResponde400() throws Exception {
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan", "Perez", "10000005", "no-es-un-email", null)))
                 .andExpect(status().isBadRequest())
@@ -157,13 +157,13 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC006_nombreOApellidoVaciosResponde400() throws Exception {
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("", "Perez", "10000006", "ac006a@example.com", null)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.details[0].campo").value("nombre"));
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan", "  ", "10000007", "ac006b@example.com", null)))
                 .andExpect(status().isBadRequest())
@@ -173,7 +173,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC007_altaSinTelefonoEsValida() throws Exception {
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Maria", "Gomez", "10000008", "ac007@example.com", null)))
                 .andExpect(status().isCreated())
@@ -193,7 +193,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC009_tokenClienteResponde403() throws Exception {
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenCliente(1L))
+                        .header("Authorization", "Bearer " + tokens.tokenCliente("cliente-test", 1L))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan", "Perez", "10000010", "ac009@example.com", null)))
                 .andExpect(status().isForbidden())
@@ -206,7 +206,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC010_adminConsultaCualquierClienteYRecibe200() throws Exception {
         long id = crearClienteAdmin("Ana", "Lopez", "10000011", "ac010@example.com", null);
         mockMvc.perform(get("/api/v1/clientes/{id}", id)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin()))
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id))
                 .andExpect(jsonPath("$.dni").value("10000011"));
@@ -216,7 +216,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC011_clienteConsultaSuPropioIdYRecibe200() throws Exception {
         long id = crearClienteAdmin("Ana", "Lopez", "10000012", "ac011@example.com", null);
         mockMvc.perform(get("/api/v1/clientes/{id}", id)
-                        .header("Authorization", "Bearer " + tokens.tokenCliente(id)))
+                        .header("Authorization", "Bearer " + tokens.tokenCliente("cliente-test", id)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
     }
@@ -225,7 +225,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC012_clienteConsultaIdAjenoYRecibe403() throws Exception {
         long id = crearClienteAdmin("Ana", "Lopez", "10000013", "ac012@example.com", null);
         mockMvc.perform(get("/api/v1/clientes/{id}", id)
-                        .header("Authorization", "Bearer " + tokens.tokenCliente(999999L)))
+                        .header("Authorization", "Bearer " + tokens.tokenCliente("cliente-test", 999999L)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESO_DENEGADO"));
     }
@@ -233,7 +233,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC013_consultarIdInexistenteResponde404() throws Exception {
         mockMvc.perform(get("/api/v1/clientes/{id}", 999999)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin()))
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("CLIENTE_NO_ENCONTRADO"))
                 .andExpect(jsonPath("$.message").value("Cliente no encontrado"));
@@ -245,7 +245,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC014_adminEditaConDatosValidosYRecibe200ConRepresentacionActualizada() throws Exception {
         long id = crearClienteAdmin("Juan", "Perez", "10000014", "ac014@example.com", null);
         mockMvc.perform(put("/api/v1/clientes/{id}", id)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Maria", "Gomez", "20000014", "ac014-nuevo@example.com", "114567890")))
                 .andExpect(status().isOk())
@@ -261,7 +261,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC015_editarIdInexistenteResponde404() throws Exception {
         mockMvc.perform(put("/api/v1/clientes/{id}", 999999)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Maria", "Gomez", "10000015", "ac015@example.com", null)))
                 .andExpect(status().isNotFound())
@@ -274,7 +274,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
         crearClienteAdmin("Ana", "Lopez", "10000016", "ac016a@example.com", null);
         long b = crearClienteAdmin("Bruno", "Diaz", "20000016", "ac016b@example.com", null);
         mockMvc.perform(put("/api/v1/clientes/{id}", b)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Bruno", "Diaz", "10000016", "ac016b@example.com", null)))
                 .andExpect(status().isConflict())
@@ -288,7 +288,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
         crearClienteAdmin("Ana", "Lopez", "10000017", "ac017@example.com", null);
         long b = crearClienteAdmin("Bruno", "Diaz", "20000017", "ac017b@example.com", null);
         mockMvc.perform(put("/api/v1/clientes/{id}", b)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Bruno", "Diaz", "20000017", "ac017@example.com", null)))
                 .andExpect(status().isConflict())
@@ -299,7 +299,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC018_edicionQueMantienePropioDniYEmailEsValida() throws Exception {
         long id = crearClienteAdmin("Juan", "Perez", "10000018", "ac018@example.com", null);
         mockMvc.perform(put("/api/v1/clientes/{id}", id)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Juan Carlos", "Perez", "10000018", "ac018@example.com", "+549112345678")))
                 .andExpect(status().isOk())
@@ -311,7 +311,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC019_edicionConTokenClienteResponde403() throws Exception {
         mockMvc.perform(put("/api/v1/clientes/{id}", 1L)
-                        .header("Authorization", "Bearer " + tokens.tokenCliente(1L))
+                        .header("Authorization", "Bearer " + tokens.tokenCliente("cliente-test", 1L))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(bodyCliente("Maria", "Gomez", "10000019", "ac019@example.com", null)))
                 .andExpect(status().isForbidden())
@@ -327,7 +327,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
         // Persistencia real: los ids asignados son crecientes y el listado los
         // devuelve en ese orden.
         mockMvc.perform(get("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin()))
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", not(empty())))
                 .andExpect(jsonPath("$[0].id", greaterThan(0)))
@@ -347,7 +347,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC021_listadoConTokenClienteResponde403() throws Exception {
         mockMvc.perform(get("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenCliente(1L)))
+                        .header("Authorization", "Bearer " + tokens.tokenCliente("cliente-test", 1L)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESO_DENEGADO"));
     }
@@ -366,7 +366,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     void AC024_losDatosPersistenEntreRequests() throws Exception {
         long id = crearClienteAdmin("Persistente", "Cliente", "10000024", "ac024@example.com", "114567890");
         mockMvc.perform(get("/api/v1/clientes/{id}", id)
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin()))
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Persistente"))
                 .andExpect(jsonPath("$.dni").value("10000024"));
@@ -375,7 +375,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC024_jsonMalformadoResponde400ConEnvelope() throws Exception {
         mockMvc.perform(post("/api/v1/clientes")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin())
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{no-es-json"))
                 .andExpect(status().isBadRequest())
@@ -386,7 +386,7 @@ class ClienteApiIntegrationTest extends BaseIntegrationTest {
     @Test
     void AC024_idNoNumericoResponde400ConEnvelope() throws Exception {
         mockMvc.perform(get("/api/v1/clientes/abc")
-                        .header("Authorization", "Bearer " + tokens.tokenAdmin()))
+                        .header("Authorization", "Bearer " + tokens.tokenAdmin("admin-test")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("DATOS_INVALIDOS"));
     }

@@ -12,11 +12,12 @@ import java.util.Date;
 
 /**
  * Emisión de tokens JWT para tests de integración (ADR-004 §8.4). Vive en
- * scope de test: la producción solo valida (JwtService). Usa el MISMO secret
- * de application-test.yml y el MISMO contrato de claims que JwtService espera:
+ * scope de test: la emisión en producción la hace {@code JwtService.emitir}
+ * (SPEC-003, ADR-005). Usa el MISMO secret de application-test.yml y el MISMO
+ * contrato de claims que {@code JwtService} espera:
  *
  * <pre>
- * sub:        rol ("ADMIN" | "CLIENTE")   // provisional hasta SPEC-003
+ * sub:        username                    // contrato SPEC-003 (antes: rol provisional)
  * role:       "ADMIN" | "CLIENTE"
  * clienteId:  solo en tokens CLIENTE (Long)
  * iat, exp:   exp = now + banco.security.jwt-expiration-minutes
@@ -32,18 +33,18 @@ public class JwtTokenFactory {
         this.expirationMinutes = expirationMinutes;
     }
 
-    public String tokenAdmin() {
-        return token("ADMIN", null);
+    public String tokenAdmin(String username) {
+        return token(username, "ADMIN", null);
     }
 
-    public String tokenCliente(Long clienteId) {
-        return token("CLIENTE", clienteId);
+    public String tokenCliente(String username, Long clienteId) {
+        return token(username, "CLIENTE", clienteId);
     }
 
-    private String token(String rol, Long clienteId) {
+    private String token(String username, String rol, Long clienteId) {
         Instant now = Instant.now();
         JwtBuilder builder = Jwts.builder()
-                .subject(rol)
+                .subject(username)
                 .claim("role", rol)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
