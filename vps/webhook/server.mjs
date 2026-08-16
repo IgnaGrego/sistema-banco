@@ -6,6 +6,8 @@ import path from "node:path";
 const PORT = Number(process.env.PORT || 8080);
 const SECRET = process.env.WEBHOOK_SECRET || "";
 const TRIGGER = (process.env.TRIGGER_COMMAND || "/sdd").trim();
+const TRIGGER_ON_OPEN =
+  (process.env.TRIGGER_ON_OPEN || "false").toLowerCase() === "true";
 const QUEUE_DIR = process.env.QUEUE_DIR || "/queue";
 
 function verifySignature(raw, signature) {
@@ -77,7 +79,7 @@ const server = http.createServer(async (req, res) => {
     createdAt: new Date().toISOString(),
   };
 
-  if (event === "issues" && action === "opened") {
+  if (event === "issues" && action === "opened" && TRIGGER_ON_OPEN) {
     await enqueue(task);
   } else if (event === "issue_comment" && action === "created") {
     const comment = (payload.comment && payload.comment.body) || "";
@@ -92,5 +94,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[webhook] listening on :${PORT} (trigger="${TRIGGER}")`);
+  console.log(
+    `[webhook] listening on :${PORT} (trigger="${TRIGGER}", on_open=${TRIGGER_ON_OPEN})`,
+  );
 });
