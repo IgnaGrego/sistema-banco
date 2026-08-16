@@ -1,6 +1,7 @@
 ---
 description: Verifies an implementation against its specification and architecture. Returns PASS or FAIL and writes the review report to docs/reviews/.
 mode: subagent
+model: opencode-go/deepseek-v4-flash
 permission:
   edit:
     "*": deny
