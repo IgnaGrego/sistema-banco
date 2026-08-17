@@ -15,14 +15,28 @@ function tokenConPayload(payload: unknown): string {
 }
 
 describe('decodificarJwt (FR-004, AC-007)', () => {
-  it('extrae role y clienteId de un token CLIENTE (base64url, sin firma)', () => {
+  it('extrae role, clienteId y username (claim sub) de un token CLIENTE (base64url, sin firma)', () => {
     const token = crearToken({ role: 'CLIENTE', clienteId: 42 });
-    expect(decodificarJwt(token)).toEqual({ role: 'CLIENTE', clienteId: 42 });
+    expect(decodificarJwt(token)).toEqual({ role: 'CLIENTE', clienteId: 42, username: 'usuario-test' });
   });
 
-  it('extrae role de un token ADMIN (sin clienteId)', () => {
+  it('extrae role y username de un token ADMIN (sin clienteId)', () => {
     const token = crearToken({ role: 'ADMIN' });
+    expect(decodificarJwt(token)).toEqual({ role: 'ADMIN', username: 'usuario-test' });
+  });
+
+  it('A-005 — token sin claim sub: no expone la clave username (fallback R2)', () => {
+    const token = tokenConPayload({ role: 'ADMIN' });
     expect(decodificarJwt(token)).toEqual({ role: 'ADMIN' });
+    expect(decodificarJwt(token)).not.toHaveProperty('username');
+  });
+
+  it('A-005 — claim sub no string: no expone la clave username', () => {
+    expect(decodificarJwt(tokenConPayload({ role: 'ADMIN', sub: 123 }))).toEqual({ role: 'ADMIN' });
+    expect(decodificarJwt(tokenConPayload({ role: 'CLIENTE', clienteId: 1, sub: 123 }))).toEqual({
+      role: 'CLIENTE',
+      clienteId: 1,
+    });
   });
 
   it('devuelve null con un token de 2 segmentos (malformado)', () => {

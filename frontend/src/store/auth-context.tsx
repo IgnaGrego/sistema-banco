@@ -17,6 +17,8 @@ interface EstadoSesion {
   token: string | null;
   rol: Rol | null;
   clienteId?: number;
+  /** Claim `sub` del JWT (SPEC-003 §6.3: sub = username) — A-005 (SPEC-009 FR-003). */
+  username?: string;
   cargando: boolean;
 }
 
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setEstado({ token: null, rol: null, cargando: false });
       return;
     }
-    setEstado({ token, rol: claims.role, clienteId: claims.clienteId, cargando: false });
+    setEstado({ token, rol: claims.role, clienteId: claims.clienteId, username: claims.username, cargando: false });
   }, []);
 
   const login = useCallback(async (username: string, password: string): Promise<Rol> => {
@@ -61,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Token de sesión inválido');
     }
     guardarToken(token);
-    setEstado({ token, rol: claims.role, clienteId: claims.clienteId, cargando: false });
+    setEstado({ token, rol: claims.role, clienteId: claims.clienteId, username: claims.username, cargando: false });
     return claims.role;
   }, []);
 
