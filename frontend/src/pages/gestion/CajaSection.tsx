@@ -185,7 +185,7 @@ function FormularioCaja({ tipo, cuentasActivas, onOperacionExitosa }: Formulario
   };
 
   return (
-    <section>
+    <section className="seccion-sub">
       <h3>{titulo}</h3>
 
       {confirmacion !== null && cuentaOperada !== null ? (

@@ -61,7 +61,9 @@ export default function CuentasPage() {
               <div className="cuenta-resumen">
                 <span className="cuenta-tipo">{ETIQUETA_TIPO[cuenta.tipo]}</span>
                 <span className="cuenta-cbu">CBU: {cuenta.cbu}</span>
-                <Monto monto={cuenta.saldo} />
+                <span className="cuenta-saldo">
+                  <Monto monto={cuenta.saldo} />
+                </span>
                 <span className="cuenta-moneda">{cuenta.moneda}</span>
                 <span className={`cuenta-estado cuenta-estado-${cuenta.estado.toLowerCase()}`}>
                   {cuenta.estado}
@@ -111,7 +113,9 @@ function MovimientosCuenta({ cuentaId }: { cuentaId: number }) {
 function MovimientoItem({ movimiento }: { movimiento: MovimientoDto }) {
   return (
     <li className="movimiento">
-      <span className="movimiento-tipo">{movimiento.tipo}</span>
+      <span className={`movimiento-tipo movimiento-tipo-${movimiento.tipo.toLowerCase()}`}>
+        {movimiento.tipo}
+      </span>
       <Monto monto={movimiento.monto} />
       <span className="movimiento-moneda">{movimiento.moneda}</span>
       <span className="movimiento-fecha">{formatearFecha(movimiento.fecha)}</span>
