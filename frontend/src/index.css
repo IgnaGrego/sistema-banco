@@ -1,35 +1,147 @@
-/* CSS plano mínimo (diseño §10: sin librería de componentes). */
+/* ============================================================
+   Sistema de diseño (SPEC-009, FR-002) — única hoja de estilos.
+   Los tokens del bloque :root son la materialización de
+   docs/design/ui-guide.md (FR-001, AC-001/AC-002): la guía es la
+   única fuente de verdad de los valores. NINGUNA regla usa valores
+   de color/espaciado/radio/sombra literales fuera de :root (BR-002).
+   Breakpoints mobile-first (A-006): las variables CSS no pueden
+   usarse en condiciones @media; los valores literales 640/768/1024
+   provienen de la guía (§6).
+   ============================================================ */
 
+/* ------------------------------------------------------------
+   1. Tokens (definición — única excepción de valores literales)
+   ------------------------------------------------------------ */
 :root {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #1f2933;
-  background-color: #f5f7fa;
-  line-height: 1.5;
+  /* Paleta: azul institucional + neutros (guía §1.1) */
+  --color-primario: #1f6feb;
+  --color-primario-oscuro: #102a43;
+  --color-fondo: #f5f7fa;
+  --color-superficie: #ffffff;
+  --color-borde: #d9e2ec;
+  --color-borde-input: #bcccdc;
+  --color-texto: #1f2933;
+  --color-texto-suave: #486581;
+  --color-deshabilitado: #9fb3c8;
+
+  /* Colores semánticos de estado (guía §1.2) */
+  --estado-exito-fondo: #e3fcec;
+  --estado-exito-borde: #9ae6b4;
+  --estado-exito-texto: #1a7f37;
+  --estado-error-fondo: #fdecea;
+  --estado-error-borde: #e8a0a0;
+  --estado-error-texto: #8b0000;
+  --estado-advertencia-fondo: #fff8e6;
+  --estado-advertencia-borde: #f0d78c;
+  --estado-advertencia-texto: #7a4d00;
+  --estado-info-fondo: #e8f0fe;
+  --estado-info-borde: #b3c9f0;
+  --estado-info-texto: #1f4e8c;
+
+  /* Tipografía (guía §2) */
+  --font-familia: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --line-height-base: 1.5;
+  --font-xs: 0.75rem;
+  --font-sm: 0.875rem;
+  --font-base: 1rem;
+  --font-lg: 1.125rem;
+  --font-xl: 1.25rem;
+  --font-2xl: 1.5rem;
+  --font-3xl: 1.875rem;
+
+  /* Espaciado — base 4 px (guía §3) */
+  --espacio-1: 0.25rem;
+  --espacio-2: 0.5rem;
+  --espacio-3: 0.75rem;
+  --espacio-4: 1rem;
+  --espacio-5: 1.5rem;
+  --espacio-6: 2rem;
+  --espacio-8: 3rem;
+
+  /* Sombras (guía §4) */
+  --sombra-sm: 0 1px 2px rgba(16, 42, 67, 0.08);
+  --sombra-md: 0 4px 12px rgba(16, 42, 67, 0.12);
+  --sombra-lg: 0 8px 24px rgba(16, 42, 67, 0.16);
+
+  /* Redondeos (guía §5) */
+  --radio-sm: 4px;
+  --radio-md: 8px;
+  --radio-lg: 12px;
+  --radio-xl: 16px;
+  --radio-redondo: 50%;
 }
 
+/* ------------------------------------------------------------
+   2. Base
+   ------------------------------------------------------------ */
 body {
   margin: 0;
+  font-family: var(--font-familia);
+  line-height: var(--line-height-base);
+  color: var(--color-texto);
+  background-color: var(--color-fondo);
 }
 
 h1,
 h2,
 h3 {
   font-weight: 600;
+  color: var(--color-primario-oscuro);
+  margin-top: 0;
 }
 
+h1 {
+  font-size: var(--font-2xl);
+}
+
+h2 {
+  font-size: var(--font-xl);
+}
+
+h3 {
+  font-size: var(--font-lg);
+}
+
+/* Foco visible en todos los elementos interactivos (FR-010, BR-007) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-primario);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------
+   3. Layout (header con marca, usuario y logout — FR-003)
+   ------------------------------------------------------------ */
 .layout-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  background-color: #102a43;
-  color: #ffffff;
-  padding: 0.75rem 1.5rem;
+  column-gap: var(--espacio-4);
+  row-gap: var(--espacio-2);
+  background-color: var(--color-primario-oscuro);
+  color: var(--color-superficie);
+  padding: var(--espacio-3) var(--espacio-4);
+}
+
+.marca {
+  color: var(--color-superficie);
+  font-size: var(--font-xl);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.layout-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
 }
 
 .layout-nav a {
-  color: #ffffff;
+  color: var(--color-superficie);
   text-decoration: none;
-  margin-right: 1rem;
   font-weight: 600;
 }
 
@@ -37,150 +149,463 @@ h3 {
   text-decoration: underline;
 }
 
-.boton-logout {
-  background: transparent;
-  color: #ffffff;
-  border: 1px solid #ffffff;
-  border-radius: 4px;
-  padding: 0.375rem 0.75rem;
+.usuario-actual {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--espacio-1) var(--espacio-2);
+}
+
+.usuario-actual-nombre {
+  font-weight: 600;
+}
+
+.usuario-actual-rol {
+  font-size: var(--font-sm);
+  opacity: 0.9;
+}
+
+/* Botón de logout (ghost): más específico que la regla global de
+   botones para que gane la apariencia transparente (mismo
+   orden de cascada). */
+button.boton-logout {
+  background-color: transparent;
+  color: var(--color-superficie);
+  border: 1px solid var(--color-superficie);
+  border-radius: var(--radio-sm);
+  padding: var(--espacio-1) var(--espacio-3);
   cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+button.boton-logout:hover {
+  background-color: var(--color-primario);
+  border-color: var(--color-primario);
 }
 
 .layout-main {
   max-width: 60rem;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--espacio-4);
 }
 
-.login {
-  max-width: 24rem;
-  margin: 4rem auto;
-  background-color: #ffffff;
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
-  padding: 1.5rem;
-}
-
+/* ------------------------------------------------------------
+   4. Componentes (formularios, botones, campos, montos)
+   ------------------------------------------------------------ */
 .campo {
-  margin-bottom: 1rem;
+  margin-bottom: var(--espacio-4);
 }
 
 .campo label {
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--espacio-1);
   font-weight: 600;
+  color: var(--color-texto);
 }
 
 .campo input,
 .campo select {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.5rem;
-  border: 1px solid #bcccdc;
-  border-radius: 4px;
-  font-size: 1rem;
+  padding: var(--espacio-2);
+  border: 1px solid var(--color-borde-input);
+  border-radius: var(--radio-sm);
+  font-size: var(--font-base);
+  font-family: inherit;
+  background-color: var(--color-superficie);
+  color: var(--color-texto);
+}
+
+.campo input:focus,
+.campo select:focus {
+  border-color: var(--color-primario);
 }
 
 .error-campo {
   display: block;
-  color: #b30000;
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
+  color: var(--estado-error-texto);
+  font-size: var(--font-sm);
+  margin-top: var(--espacio-1);
 }
 
 .error-general {
-  background-color: #fdecea;
-  border: 1px solid #e8a0a0;
-  color: #8b0000;
-  border-radius: 4px;
-  padding: 0.5rem 0.75rem;
-  margin-bottom: 1rem;
+  background-color: var(--estado-error-fondo);
+  border: 1px solid var(--estado-error-borde);
+  color: var(--estado-error-texto);
+  border-radius: var(--radio-sm);
+  padding: var(--espacio-2) var(--espacio-3);
+  margin-bottom: var(--espacio-4);
 }
 
 button[type='submit'],
 button[type='button'] {
-  background-color: #1f6feb;
-  color: #ffffff;
+  background-color: var(--color-primario);
+  color: var(--color-superficie);
   border: none;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
+  border-radius: var(--radio-sm);
+  padding: var(--espacio-2) var(--espacio-4);
+  font-size: var(--font-base);
+  font-family: inherit;
   cursor: pointer;
 }
 
+button[type='submit']:hover:not(:disabled),
+button[type='button']:hover:not(:disabled) {
+  background-color: var(--color-primario-oscuro);
+}
+
 button:disabled {
-  background-color: #9fb3c8;
+  background-color: var(--color-deshabilitado);
   cursor: not-allowed;
 }
 
+.monto {
+  font-size: var(--font-lg);
+  font-weight: 600;
+}
+
+.acciones-formulario {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-2);
+}
+
+/* ------------------------------------------------------------
+   5. Estados (carga, vacío, error — FR-008)
+   ------------------------------------------------------------ */
 .estado-cargando,
 .estado-vacio,
 .estado-error {
-  margin: 1rem 0;
+  margin: var(--espacio-4) 0;
+}
+
+.estado-cargando {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-2);
+  color: var(--color-texto-suave);
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-sm);
+  padding: var(--espacio-4);
+}
+
+/* Spinner solo CSS (A-010): anillo animado sin dependencias. */
+.estado-cargando::before {
+  content: '';
+  width: var(--espacio-4);
+  height: var(--espacio-4);
+  border: 2px solid var(--color-borde-input);
+  border-top-color: var(--color-primario);
+  border-radius: var(--radio-redondo);
+  animation: girar 0.8s linear infinite;
+}
+
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .estado-error {
-  background-color: #fdecea;
-  border: 1px solid #e8a0a0;
-  color: #8b0000;
-  border-radius: 4px;
-  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--espacio-3);
+  background-color: var(--estado-error-fondo);
+  border: 1px solid var(--estado-error-borde);
+  color: var(--estado-error-texto);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-sm);
+  padding: var(--espacio-4);
+}
+
+.estado-error p {
+  margin: 0;
 }
 
 .estado-vacio {
-  color: #486581;
+  color: var(--color-texto-suave);
+  background-color: var(--color-superficie);
+  border: 1px dashed var(--color-borde);
+  border-radius: var(--radio-md);
+  padding: var(--espacio-5);
+  text-align: center;
 }
 
+/* ------------------------------------------------------------
+   6. Páginas
+   ------------------------------------------------------------ */
+
+/* Login: tarjeta centrada con marca (FR-004) */
+.login {
+  max-width: 24rem;
+  margin: var(--espacio-8) auto;
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-md);
+  padding: var(--espacio-5);
+}
+
+.login-marca {
+  margin: 0 0 var(--espacio-2);
+  color: var(--color-primario-oscuro);
+  font-size: var(--font-3xl);
+  font-weight: 700;
+  text-align: center;
+}
+
+.login h1 {
+  text-align: center;
+  margin-bottom: var(--espacio-4);
+}
+
+.login button[type='submit'] {
+  width: 100%;
+}
+
+/* Cuentas: tarjetas con saldo destacado (FR-005) */
 .lista-cuentas,
 .lista-movimientos,
 .lista-clientes {
   list-style: none;
   padding: 0;
+  margin: var(--espacio-4) 0;
 }
 
 .cuenta,
 .cliente,
 .movimiento {
-  background-color: #ffffff;
-  border: 1px solid #d9e2ec;
-  border-radius: 6px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-sm);
+}
+
+.cuenta {
+  padding: var(--espacio-4);
+  margin-bottom: var(--espacio-3);
 }
 
 .cuenta-resumen {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
   align-items: center;
+  gap: var(--espacio-2) var(--espacio-4);
 }
 
-.movimiento {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+.cuenta-tipo {
+  font-weight: 600;
+  color: var(--color-primario-oscuro);
+}
+
+.cuenta-cbu {
+  color: var(--color-texto-suave);
+  font-size: var(--font-sm);
+}
+
+/* Saldo destacado SOLO en /cuentas (wrapper aditivo — §5.4):
+   no se agranda `.monto` globalmente. */
+.cuenta-saldo .monto {
+  font-size: var(--font-2xl);
+  font-weight: 700;
+  color: var(--color-primario-oscuro);
+}
+
+.cuenta-moneda {
+  color: var(--color-texto-suave);
+  font-size: var(--font-sm);
+}
+
+.cuenta-estado {
+  display: inline-block;
+  padding: var(--espacio-1) var(--espacio-2);
+  border-radius: var(--radio-sm);
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+.cuenta-estado-activa {
+  color: var(--estado-exito-texto);
+  background-color: var(--estado-exito-fondo);
+  border: 1px solid var(--estado-exito-borde);
 }
 
 .cuenta-estado-bloqueada {
-  color: #b30000;
+  color: var(--estado-error-texto);
+  background-color: var(--estado-error-fondo);
+  border: 1px solid var(--estado-error-borde);
 }
 
-.seccion {
-  background-color: #ffffff;
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
-  padding: 1rem 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.acciones-formulario {
+/* Movimientos legibles (alineación, jerarquía, separación) */
+.movimiento {
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2) var(--espacio-4);
+  border-radius: var(--radio-sm);
+  padding: var(--espacio-3);
+  margin-bottom: var(--espacio-2);
+  box-shadow: none;
 }
 
+.cuenta > .lista-movimientos {
+  margin-top: var(--espacio-4);
+  padding-top: var(--espacio-3);
+  border-top: 1px solid var(--color-borde);
+}
+
+.movimiento-tipo {
+  position: relative;
+  padding-left: var(--espacio-4);
+  font-weight: 600;
+}
+
+/* Acento decorativo por tipo (A-010): el texto del tipo conserva
+   --color-texto (AA); el color solo como indicador CSS. */
+.movimiento-tipo::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--espacio-2);
+  height: var(--espacio-2);
+  border-radius: var(--radio-redondo);
+  background-color: var(--estado-info-borde);
+}
+
+.movimiento-tipo-deposito::before {
+  background-color: var(--estado-exito-borde);
+}
+
+.movimiento-tipo-retiro::before {
+  background-color: var(--estado-advertencia-borde);
+}
+
+.movimiento-tipo-transferencia-entrante::before {
+  background-color: var(--estado-info-borde);
+}
+
+.movimiento-tipo-transferencia-saliente::before {
+  background-color: var(--estado-error-borde);
+}
+
+.movimiento-moneda,
+.movimiento-fecha {
+  color: var(--color-texto-suave);
+  font-size: var(--font-sm);
+}
+
+/* Transferencia: formulario claro en tarjeta (FR-006) */
+.transferencia {
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-sm);
+  padding: var(--espacio-5);
+  margin-top: var(--espacio-6);
+}
+
+.transferencia h2 {
+  color: var(--color-primario-oscuro);
+}
+
+/* Confirmaciones (éxito — §5.7) */
 .confirmacion {
-  background-color: #e3fcec;
-  border: 1px solid #9ae6b4;
-  border-radius: 6px;
-  padding: 0.75rem 1rem;
+  background-color: var(--estado-exito-fondo);
+  border: 1px solid var(--estado-exito-borde);
+  color: var(--estado-exito-texto);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-sm);
+  padding: var(--espacio-4);
+}
+
+.confirmacion h3 {
+  color: var(--estado-exito-texto);
+}
+
+.confirmacion p {
+  margin: var(--espacio-1) 0;
+}
+
+/* Gestión: secciones consistentes (FR-007) */
+.seccion {
+  background-color: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-md);
+  box-shadow: var(--sombra-md);
+  padding: var(--espacio-5);
+  margin-bottom: var(--espacio-6);
+}
+
+.seccion h2 {
+  color: var(--color-primario-oscuro);
+}
+
+.seccion h3 {
+  color: var(--color-primario-oscuro);
+  margin-top: var(--espacio-5);
+}
+
+/* Sub-secciones de caja (Depósito/Retiro — SPEC-007) */
+.seccion-sub {
+  margin-top: var(--espacio-5);
+}
+
+.cliente {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-2) var(--espacio-4);
+  border-radius: var(--radio-sm);
+  padding: var(--espacio-3);
+  margin-bottom: var(--espacio-2);
+  box-shadow: none;
+}
+
+.cliente-nombre {
+  font-weight: 600;
+}
+
+.cliente-dni,
+.cliente-email,
+.cliente-fecha {
+  color: var(--color-texto-suave);
+  font-size: var(--font-sm);
+}
+
+/* ------------------------------------------------------------
+   7. Responsive mobile-first (FR-009 — breakpoints de la guía §6)
+   ------------------------------------------------------------ */
+@media (min-width: 640px) {
+  .layout-main {
+    padding: var(--espacio-5);
+  }
+
+  .login {
+    padding: var(--espacio-6);
+  }
+}
+
+@media (min-width: 768px) {
+  .layout-header {
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Aprovecha el ancho: las tarjetas de cuenta en dos columnas. */
+  .lista-cuentas {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--espacio-3);
+  }
+
+  .lista-cuentas .cuenta {
+    margin-bottom: 0;
+  }
 }
