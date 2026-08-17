@@ -1,4 +1,4 @@
-import type { TipoCuenta } from '../api/types';
+import type { Rol, TipoCuenta } from '../api/types';
 
 /**
  * Pre-validaciones de UX que espejan reglas ya enforced por el backend
@@ -180,6 +180,83 @@ export function validarRetiro(
     Number(monto.trim()) > saldoCuenta
   ) {
     errores.monto = 'El saldo no es suficiente para el retiro';
+  }
+  return errores;
+}
+
+// ---------------------------------------------------------------------------
+// Registro de usuario (SPEC-008 BR-001..BR-004): pre-validaciones de UX que
+// espejan `RegistroValidator` del backend (SPEC-003 BR-001..BR-003,
+// ERR-004/005/006/007); el backend permanece como fuente de verdad y punto de
+// enforcement (BR-005, A-004). La UNICIDAD de username NO se pre-valida (no
+// existe un endpoint de chequeo previo): el 409 del backend da el feedback
+// autoritativo por campo (A-004, AF-002, ERR-002).
+// ---------------------------------------------------------------------------
+
+/** BR-001 — username obligatorio (tras recortar espacios) y de hasta 50 caracteres (espejo de RegistroValidator / SPEC-003 A-005). */
+function validarUsernameRegistro(username: string): string | undefined {
+  if (username.trim() === '') {
+    return 'El usuario es obligatorio';
+  }
+  if (username.trim().length > 50) {
+    return 'El usuario no puede superar los 50 caracteres';
+  }
+  return undefined;
+}
+
+/** BR-002 — password obligatoria y con al menos 8 caracteres (espejo de SPEC-003 BR-002/ERR-004; sin trim: regla exacta del backend). */
+function validarPasswordRegistro(password: string): string | undefined {
+  if (password.length < 8) {
+    return 'La contraseña debe tener al menos 8 caracteres';
+  }
+  return undefined;
+}
+
+/** BR-003 — rol obligatorio: CLIENTE o ADMIN (espejo de SPEC-003 A-002/ERR-004). */
+function validarRolRegistro(rol: Rol | ''): string | undefined {
+  if (rol !== 'CLIENTE' && rol !== 'ADMIN') {
+    return 'Seleccione un rol';
+  }
+  return undefined;
+}
+
+/** BR-004 — clienteId obligatorio solo cuando rol = CLIENTE (espejo de SPEC-003 ERR-007; para ADMIN es null — A-003). */
+function validarClienteRegistro(rol: Rol | '', clienteId: number | null): string | undefined {
+  if (rol === 'CLIENTE' && clienteId === null) {
+    return 'Seleccione un cliente a vincular';
+  }
+  return undefined;
+}
+
+/**
+ * BR-001..BR-004 — registro de usuario (FR-003, A-004, AC-008). Espejo de
+ * `RegistroValidator`: username obligatorio/≤50, password ≥8, rol CLIENTE|ADMIN
+ * y clienteId requerido si CLIENTE. La UNICIDAD de username NO se pre-valida
+ * (A-004): el 409 del backend es el feedback autoritativo. Devuelve
+ * `ErroresPorCampo` (vacío si válido).
+ */
+export function validarRegistroUsuario(
+  username: string,
+  password: string,
+  rol: Rol | '',
+  clienteId: number | null,
+): ErroresPorCampo {
+  const errores: ErroresPorCampo = {};
+  const errUsername = validarUsernameRegistro(username);
+  if (errUsername !== undefined) {
+    errores.username = errUsername;
+  }
+  const errPassword = validarPasswordRegistro(password);
+  if (errPassword !== undefined) {
+    errores.password = errPassword;
+  }
+  const errRol = validarRolRegistro(rol);
+  if (errRol !== undefined) {
+    errores.rol = errRol;
+  }
+  const errCliente = validarClienteRegistro(rol, clienteId);
+  if (errCliente !== undefined) {
+    errores.clienteId = errCliente;
   }
   return errores;
 }

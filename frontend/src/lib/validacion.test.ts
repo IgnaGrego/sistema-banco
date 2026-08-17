@@ -3,6 +3,7 @@ import {
   validarCliente,
   validarDeposito,
   validarLogin,
+  validarRegistroUsuario,
   validarRetiro,
   validarTransferencia,
 } from './validacion';
@@ -178,5 +179,50 @@ describe('validarDeposito / validarRetiro (SPEC-007, BR-001..BR-003, AC-010)', (
       expect(validarRetiro(1, '0', 1000)).toHaveProperty('monto');
       expect(validarRetiro(1, '10.555', 1000)).toHaveProperty('monto');
     });
+  });
+});
+
+describe('validarRegistroUsuario (SPEC-008, BR-001..BR-004, AC-008)', () => {
+  it('acepta un registro CLIENTE válido y el boundary de password de 8 caracteres (BR-002)', () => {
+    expect(validarRegistroUsuario('jperez', '12345678', 'CLIENTE', 1)).toEqual({});
+  });
+
+  it('acepta un registro ADMIN sin cliente (BR-004, A-003)', () => {
+    expect(validarRegistroUsuario('jperez', '12345678', 'ADMIN', null)).toEqual({});
+  });
+
+  it('acepta ADMIN con cliente informado (la pre-validación solo exige cliente para CLIENTE)', () => {
+    expect(validarRegistroUsuario('jperez', '12345678', 'ADMIN', 1)).toEqual({});
+  });
+
+  it('rechaza username vacío o de solo espacios (BR-001)', () => {
+    expect(validarRegistroUsuario('', '12345678', 'CLIENTE', 1)).toHaveProperty('username');
+    expect(validarRegistroUsuario('   ', '12345678', 'CLIENTE', 1)).toHaveProperty('username');
+  });
+
+  it('rechaza username de más de 50 caracteres y acepta el boundary de 50 (BR-001)', () => {
+    expect(validarRegistroUsuario('a'.repeat(51), '12345678', 'CLIENTE', 1)).toHaveProperty(
+      'username',
+    );
+    expect(validarRegistroUsuario('a'.repeat(50), '12345678', 'CLIENTE', 1)).toEqual({});
+  });
+
+  it('rechaza password de menos de 8 caracteres (BR-002)', () => {
+    expect(validarRegistroUsuario('jperez', '1234567', 'CLIENTE', 1)).toHaveProperty('password');
+  });
+
+  it('rechaza rol vacío o inválido (BR-003)', () => {
+    expect(validarRegistroUsuario('jperez', '12345678', '', 1)).toHaveProperty('rol');
+    // `as never` solo para el test: el tipo TS restringe la entrada, la
+    // validación cubre valores no contemplados (BR-003).
+    expect(validarRegistroUsuario('jperez', '12345678', 'GERENTE' as never, 1)).toHaveProperty(
+      'rol',
+    );
+  });
+
+  it('rechaza CLIENTE sin cliente a vincular (BR-004)', () => {
+    expect(validarRegistroUsuario('jperez', '12345678', 'CLIENTE', null)).toHaveProperty(
+      'clienteId',
+    );
   });
 });
