@@ -21,6 +21,10 @@ export function decodificarJwt(token: string): JwtClaims | null {
     if (rol !== 'CLIENTE' && rol !== 'ADMIN') {
       return null;
     }
+    // A-005 (SPEC-009 FR-003): el claim `sub` (= username, SPEC-003 §6.3)
+    // se expone solo cuando es string; payload sin `sub` → sin clave
+    // `username` (fallback R2: el header muestra solo el rol).
+    const username = payload.sub as unknown;
     if (rol === 'CLIENTE') {
       // Contrato de claims (JwtService): `clienteId` (Long) solo en tokens
       // CLIENTE; un token CLIENTE sin clienteId es un payload inválido.
@@ -28,9 +32,16 @@ export function decodificarJwt(token: string): JwtClaims | null {
       if (typeof clienteId !== 'number' || !Number.isInteger(clienteId)) {
         return null;
       }
-      return { role: rol as Rol, clienteId };
+      return {
+        role: rol as Rol,
+        clienteId,
+        ...(typeof username === 'string' ? { username } : {}),
+      };
     }
-    return { role: rol as Rol };
+    return {
+      role: rol as Rol,
+      ...(typeof username === 'string' ? { username } : {}),
+    };
   } catch {
     return null;
   }

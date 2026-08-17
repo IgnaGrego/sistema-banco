@@ -48,6 +48,7 @@ export default function LoginPage() {
 
   return (
     <section className="login">
+      <p className="login-marca">Banco</p>
       <h1>Iniciar sesión</h1>
       {errorGeneral !== null && (
         <div role="alert" className="error-general">

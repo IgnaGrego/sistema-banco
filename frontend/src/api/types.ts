@@ -143,4 +143,6 @@ export interface ErrorEnvelope {
 export interface JwtClaims {
   role: Rol;
   clienteId?: number;
+  /** Claim `sub` del JWT (SPEC-003 §6.3: sub = username) — A-005 (SPEC-009 FR-003). */
+  username?: string;
 }
